@@ -1215,8 +1215,8 @@ func readFile(path : SliceChar) : (SliceChar) {
 
 Celeris provides several built-in list and collection types:
 
-| Type                | Description                                                                 |
-|---------------------|-----------------------------------------------------------------------------|
+| Type                | Description                                                                  |
+|---------------------|------------------------------------------------------------------------------|
 | `List<T>`           | Ordered list of elements of type `T`. Supports indexing and iteration.       |
 | `Set<T>`            | Unordered collection of unique elements of type `T`. No duplicates allowed.  |
 | `Map<K, V>`         | Key-value mapping from type `K` to type `V`. Keys are unique.                |
@@ -1303,7 +1303,6 @@ using dev.zanckor.MathUtility as Math
 ## 5. Memory Management
 
 Memory management in Celeris is designed to balance safety, performance, and developer control. The language provides both automatic and manual memory management mechanisms, allowing developers to choose the most appropriate strategy for their use case.
-
 
 ### 5.1 Automatic Memory Management
 

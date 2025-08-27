@@ -8,8 +8,6 @@ Language for Celeris designed to be read by **CSAOT**.
 
 ## 2. Lexical Structure
 
-The lexical structure of Celeris MiniLang consists of the following elements:
-
 ### 2.1 Whitespace
 
 Whitespace characters (spaces, tabs, newlines) are used to separate tokens and improve readability. They are generally ignored except when separating tokens.
@@ -18,16 +16,14 @@ Whitespace characters (spaces, tabs, newlines) are used to separate tokens and i
 
 Comments are ignored by the compiler and can be single-line or multi-line.
 
-#### Single-line Comments
-
+#### 2.2.1 Single-line Comments
 Start with `//` and continue to the end of the line.
 
 ```go
 // This is a single-line comment
 ```
 
-#### Multi-line Comments
-
+#### 2.2.2 Multi-line Comments
 Enclosed between `/*` and `*/`.
 
 ```go
@@ -42,7 +38,7 @@ Enclosed between `/*` and `*/`.
  */
 ```
 
-#### Documentation Comments
+#### 2.2.3 Documentation Comments
 
 ```go
 /**
@@ -56,32 +52,23 @@ Identifiers are names for variables, functions, classes, etc. They must start wi
 
 ### 2.4 Nomenclature Standards
 
-#### Packages
-
-Package names must be singular, in lowercase.
-In case for composed packages, you can both keep it all in lowercase, or use an underscore. 
-
-Anyway, it is recommended to use non composed names for packages.
-
-If the package name begins with a digit or any other illegal character, the suggested convention is to add an underscore aswell.
+#### 2.4.1 Packages
+Package names must be singular, in lowercase. In case for composed packages, you can both keep it all in lowercase, or use an underscore. Anyway, it is recommended to use non composed names for packages. If the package name begins with a digit or any other illegal character, the suggested convention is to add an underscore aswell.
 
 **Example:** `mathutility` or `math_utility`
 **Underscore Example:** `_2025exercise`
 
-#### Classes
-
+#### 2.4.2 Classes
 Class names must start with an uppercase letter, be singular, and not exceed three words.
 
 **Example:** `UserProfile`
 
-#### Functions
-
+#### 2.4.3 Functions
 Function names must be in camelCase, start with a lowercase letter, and use descriptive verbs.
 
 **Example:** `calculateTriangleArea`
 
-#### Variables
-
+#### 2.4.4 Variables
 Variable names must be in camelCase, start with a lowercase letter, and be descriptive. Avoid abbreviations unless widely recognized.
 
 **Examples:** `userAge`, `totalAmount`
@@ -97,8 +84,18 @@ Literals represent fixed values in the source code:
 - **Double literals:** `3.14159D`, `-2.71828D`
 - **Character literals:** `'A'`, `'9'`
 - **SliceChar literals:** `"Hello, World!"`
-- **Boolean literals:** `true`, `false`, `0`, `1`
+- **Boolean literals:** `true`, `false`
 - **Null literal:** `null`
+
+#### 2.5.1 Integer Literals
+
+An Integer can be written as `10`, `0`, `-1`, being interpreted by default a `Int<32>`.
+
+```go
+var a = 10          // By default: Int<32>
+var b : Int<8> = 5  // 5 Integer of 8 bits
+var c : Int<64> = 5 // 5 Integer of 64 bits
+```
 
 ### 2.6 Operators, Symbols and Delimiters
 
@@ -112,8 +109,8 @@ Literals represent fixed values in the source code:
 | `/` | Division operator |
 | `%` | Modulo operator |
 | `=` | Assignment operator |
-| `++` | Increment operator (increases value by 1; if used before the value, increments before the operation; if after, increments after) |
-| `--` | Decrement operator (decreases value by 1; if used before the value, decrements before the operation; if after, decrements after) |
+| `++` | Increment operator |
+| `--` | Decrement operator |
 | `&&` | Logical AND operator |
 | `\|\|` | Logical OR operator |
 | `!` | Logical NOT operator |
@@ -134,13 +131,11 @@ Literals represent fixed values in the source code:
 | `;` | Statement terminator (Optional for inline) |
 | `:` | Type annotation or label |
 | `()` | Function call or grouping expressions |
-| `$variable` | Used for string interpolation within SliceChar literals. Example: `"Hello, $name!"` |
+| `$variable` | Used for string interpolation within SliceChar literals |
 
 ### 2.7 Keywords
 
-The language is tokenized into keywords, identifiers, literals, operators, and delimiters. Tokens are separated by whitespace or delimiters.
-
-#### Conditional Words
+#### 2.7.1 Conditional Words
 
 | Keyword | Explanation |
 |---------|-------------|
@@ -151,22 +146,20 @@ The language is tokenized into keywords, identifiers, literals, operators, and d
 | `CASE` | Case in a switch |
 | `DEFAULT` | Specifies default case in switch statements |
 
-#### Flow Control Words
+#### 2.7.2 Flow Control Words
 
 | Keyword | Explanation |
 |---------|-------------|
 | `DO` | Do-while loop |
 | `WHILE` | While loop |
 | `FOR` | For loop |
-| `STREAM` | Functional iterator over collections |
 | `BREAK` | Exit loop or switch |
 | `CONTINUE` | Skip to next iteration of loop |
 | `RETURN` | Return from function |
 | `DELETE` | Manual memory deallocation |
-| `NEW`    | Manual memory allocation (object/instance creation) |
+| `NEW` | Manual memory allocation (object/instance creation) |
 
-
-#### Error Handling Words
+#### 2.7.3 Error Handling Words
 
 | Keyword | Explanation |
 |---------|-------------|
@@ -176,7 +169,7 @@ The language is tokenized into keywords, identifiers, literals, operators, and d
 | `THROW` | Raise an exception |
 | `THROWS` | Declare exceptions a function can raise |
 
-#### Encapsulation Words
+#### 2.7.4 Encapsulation Words
 
 | Keyword | Explanation |
 |---------|-------------|
@@ -185,7 +178,7 @@ The language is tokenized into keywords, identifiers, literals, operators, and d
 | `PUBLIC` | Public access modifier |
 | `INTERNAL` | Compilation access modifier, only allows access from the same program |
 
-#### Inheritance Words
+#### 2.7.5 Inheritance Words
 
 | Keyword | Explanation |
 |---------|-------------|
@@ -198,7 +191,7 @@ The language is tokenized into keywords, identifiers, literals, operators, and d
 | `SUPER` | Access parent class functions or constructor |
 | `THIS` | Reference to the current instance |
 
-#### Miscellaneous Keywords
+#### 2.7.6 Miscellaneous Keywords
 
 | Keyword | Explanation |
 |---------|-------------|
@@ -229,9 +222,9 @@ Celeris supports a variety of built-in types and allows for user-defined types.
 |------|-------------|------|-------|
 | `Bool` | Boolean type (true/false) | 1 byte | `true` / `false` |
 | `Char` | A single character | 1 byte | 0 to 255 |
-| `SliceChar` | An array of resizable chars. Length can't change but content is mutable | variable (Default 255 Chars) | Depends on length |
+| `SliceChar` | An array of mutable chars. Length can't change but content is mutable | variable (Default 255 Chars) | Depends on length |
 | `Int<T>` | Integer type of a number. You can specify the bytes this Integer will have. By default 32. If an overflow or underflow occurs, a compilation error will be thrown. | 4 bytes | -2,147,483,648 to 2,147,483,647 |
-| `Byte` | Smallest data type. | 1 byte | 0 to 255 |
+| `Byte` | Smallest data type | 1 byte | 0 to 255 |
 | `Short` | Small integer | 2 bytes | -32,768 to 32,767 |
 | `Long` | Large integer | 8 bytes | -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807 |
 | `Float` | Single precision floating point | 4 bytes | ±1.18×10⁻³⁸ to ±3.4×10³⁸ |
@@ -239,17 +232,15 @@ Celeris supports a variety of built-in types and allows for user-defined types.
 
 ### 3.2 Composite Types
 
-#### Arrays
-
+#### 3.2.1 Arrays
 Arrays are fixed-size and mutable, non-ordered collections of elements of the same type.
 
 ```go
 var numbers : Int[5] = [1, 2, 3, 4, 5]
 ```
 
-#### Slices
-
-Slices are dynamically-sized sequences of elements. `SliceChar` is a built-in slice type for characters.
+#### 3.2.2 Slices
+Slices are fixed-sized and mutable sequences of elements. `SliceChar` is a built-in slice type for characters.
 
 ```go
 var message : SliceChar = "Hello, World!"
@@ -262,7 +253,7 @@ When a variable is declared but not explicitly initialized, it is assigned a def
 | Type | Default Value |
 |------|---------------|
 | `Bool` | `false` |
-| `Char` | `null` |
+| `Char` | `''` |
 | `SliceChar` | `""` (empty string) |
 | `Int` | `0` |
 | `Byte` | `0` |
@@ -282,25 +273,201 @@ var name : SliceChar    // name is ""
 var user : UserProfile  // user is null
 ```
 
+### 3.4 Generics and Type Parameters
+
+Generics are commonly used with collections, custom data structures, and utility functions. For example, `List<T>` can store elements of any type, and functions can accept or return generic types.
+
+Generic type parameters are resolved at compile time, ensuring type correctness and performance. You can also use type constraints to require that a type parameter implements an interface or inherits from a base class.
+
+Generics support multiple type parameters, allowing complex relationships between types. This feature is essential for building flexible APIs and reusable components.
+
+#### 3.4.1 Generic Type Declaration
+
+You must declare generic on the class or function declaration. Unless you do it, you won't be able to use generic on your class.
+
+```go
+class Container<T> {        // This is valid
+    public var value : T 
+
+    Container(initialValue : T) {
+        this.value = initialValue
+    }
+}
+
+class Container {           // This is invalid
+    var value : T
+
+    Container(initialValue : T) {
+        this.value = initialValue
+    }
+}
+
+class Utility {
+    public static func findMax<T : Number> (a : T, b : T) (T) { // This is valid
+        return a > b ? a : b
+    }
+}
+
+class MathUtility<T : Number> {
+    public static func findMax(a : T, b : T) (T) {              // This is valid
+        return a > b ? a : b
+    }
+}
+```
+
+#### 3.4.2 Generic Functions
+
+You can use Generics inside functions, as parameter or return value.
+
+```go
+class MathUtility<T : Number> {
+
+    public static func findMax(a : T, b : T) (T) {
+        return a > b ? a : b
+    }
+}
+```
+
+#### 3.4.3 Type Constraints
+
+You can specify generic type constraints to restrict the types that can be used as type parameters. By default, `<T>` allows any type, but you can use syntax like `<T : Animal>` to indicate that `T` must be `Animal` or inherit from `Animal`. This enables compile-time filtering and ensures type safety for generic classes and functions.
+
+**Example:**
+
+```go
+class PetShelter<T : Animal> {
+    var animals : List<T>
+}
+```
+
+#### 3.4.4 Multiple Type Parameters
+
+You can declare multiple generic type parameters by separating them with commas in angle brackets. This allows classes and functions to work with several types simultaneously.
+
+```go
+class Pair<K, V> {
+    var key : K
+    var value : V
+
+    Pair(key : K, value : V) {
+        this.key = key
+        this.value = value
+    }
+}
+
+class Repository<T : Entity, ID : Identifier> {
+    func findById(id : ID) : (T) {
+        // Implementation
+    }
+}
+
+func swap<A, B>(a : A, b : B) : (B, A) {
+    return b, a
+}
+```
+
+### 3.5 Nullably Types
+
+Nullable types allow a variable to hold either a value of the specified type or `null`.
+
+#### 3.5.1 Nullable Type Declaration
+
+They are declared by adding a question mark `?` to the type:
+
+```go
+var varName : <Type>? = null
+```
+
+`varName` can be of type `<Type>` or `null`. If the `?` is not included, the variable can never be `null` and the compiler will emit an error if you try to assign `null`.
+
+#### 3.5.2 Null Checking
+
+To check if a value is null, use the `null` keyword in a conditional expression:
+
+```go
+func processUser(user : User?) {
+    if (user != null) {
+        print("Processing user: $user.name")
+    } else {
+        print("No user to process")
+    }
+}
+```
+
+This pattern ensures safe access to properties or methods only when the variable is not null.
+
+#### 3.5.3 Safe Navigation Operator
+
+The safe navigation operator `?.` allows you to access properties or methods of an object only if it is not `null`. If the object is `null`, the entire expression evaluates to `null` without throwing an error.
+
+**Syntax:**
+
+```go
+var result = user?.name
+```
+
+This is equivalent to:
+
+```go
+if (user == null) {
+    return null
+} else {
+    return user.name
+}
+```
+
+You can chain safe navigation operators for nested objects:
+
+```go
+var name = entity?.data?.name
+```
+
+This returns `null` if any part of the chain (`entity`, `data`, or `name`) is `null`.
+
+> **Note:** The safe navigation operator improves code readability and reduces the need for explicit null checks.
+
+#### 3.5.4 Null Coalescing Operator
+
+The null coalescing operator `??` allows you to provide a default value when an expression evaluates to `null`. It is commonly used with nullable types and safe navigation.
+
+**Syntax:**
+
+```go
+var displayName = user?.name ?? "Unknown"
+```
+
+This is equivalent to:
+
+```go
+var name = user == null ? null : user.name
+displayName = name == null ? "Unknown" : name
+```
+
+The operator checks if the left-hand side is `null`; if so, it returns the right-hand side value. Otherwise, it returns the left-hand side value.
+
+> **Note:** The null coalescing operator simplifies code by reducing explicit null checks and providing fallback values in a single expression.
+
 ---
 
 ## 4. Language Usage
 
 ### 4.1 Variables
 
-Variables in Celeris are declared using the `var` keyword, followed by the variable name and an optional type annotation. Initialization can be performed at the time of declaration.
+Variables in Celeris are declared using the `var` keyword, followed by the variable name and an optional type annotation.
 
-#### Declaration Syntax
+#### 4.1.1 Syntax
 
 ```go
-var <variableName> : <Type?>
+[internal] [visibility] var <variableName> : <Type?>
 ```
 
+- `[internal]`: Optional. Limits function access to the same program. You can only use this on class-scope variables, not method-scope. 
+- `[visibility]`: Optional. Can be `private`, `protected`, or `public` (defaults to `private`). You can only use this on class-scope variables, not method-scope. 
 - `var` is the keyword for variable declaration
 - `variableName` is the identifier for the variable (must be unique in context)
 - `Type` is the data type of the variable (can be infered if initialized)
 
-#### Examples
+##### Examples
 
 ```go
 var age : Int
@@ -308,20 +475,15 @@ var name : SliceChar
 var isActive : Bool
 ```
 
-#### Scope
-The scope of variables in Celeris is always local to the block in which they are declared. If a variable is defined inside a function, it is only accessible within that function. Class member variables have class-level scope, meaning they can be accessed from anywhere you have a reference to the class instance. For example, if you declare:
+#### 4.1.2 Scope
 
-```go
-var dog = Dog("Thunder")
-```
+The scope of variables in Celeris is always local to the block in which they are declared. If a variable is defined inside a function, it is only accessible within that function. Class member variables have class-level scope, meaning they can be accessed from anywhere you have a reference to the class instance.
 
-you can access `dog.name` wherever `dog` is in scope.
-
-Static variables, on the other hand, have global scope within the program, provided their visibility allows access. Static members can be accessed without creating an instance of the class, and their lifetime is tied to the program execution.
+Static variables have global scope within the program, provided their visibility allows access. Static members can be accessed without creating an instance of the class, and their lifetime is tied to the program execution.
 
 The `internal` modifier restricts scope to within the same compilation program. Members marked as `internal` are only accessible from code that is part of the same compiled program, and not from external libraries or modules.
 
-#### Initialization
+#### 4.1.3 Initialization
 
 Initialize a variable at declaration using the assignment operator `=`:
 
@@ -335,10 +497,10 @@ You can also declare and initialize arrays and objects:
 
 ```go
 var numbers : Int[] = [1, 2, 3]
-var user : UserProfile = new UserProfile()
+var user : UserProfile = UserProfile()
 ```
 
-#### Multiple Assignment
+#### 4.1.4 Multiple Assignment
 
 Celeris supports multiple assignment, allowing you to assign values to several variables simultaneously:
 
@@ -358,7 +520,7 @@ var name, age, isActive = getUserInfo()
 // name = "Bob", age = 30, isActive = true
 ```
 
-#### Type Inference
+#### 4.1.5 Type Inference
 
 Celeris supports type inference, allowing the compiler to automatically deduce the type of a variable from its initializer:
 
@@ -377,7 +539,7 @@ var value : Int     // Valid: explicit type annotation
 
 ### 4.2 Constants and Static
 
-#### Constants
+#### 4.2.1 Constants
 
 Constants are declared using the `const` keyword. A constant is read-only and its value cannot be changed after initialization.
 
@@ -386,7 +548,7 @@ const PI : Double = 3.14159D
 const greeting : SliceChar = "Hello"
 ```
 
-#### Static Variables and Functions
+#### 4.2.2 Static Variables and Functions
 
 The `static` keyword is used to declare variables or functions that belong to the class itself rather than to any instance. Static members can be accessed without creating an instance of the class.
 
@@ -400,7 +562,7 @@ class MathUtils {
 }
 ```
 
-#### Combining `const` and `static`
+#### 4.2.3 Combining `const` and `static`
 
 You can use both `const` and `static` together to declare class-level constants:
 
@@ -414,82 +576,13 @@ class Config {
 
 Functions are declared using the `func` keyword:
 
-#### Syntax
+#### 4.3.1 Syntax
 
 ```go
 [internal] [visibility] [abstract] [static] func functionName(param1 : Type1, param2 : Type2, ...) : (ReturnType) {
     // function body
 }
 ```
-
-#### Function Declaration Modifiers
-
-- `[internal]`: Optional. Limits function access to the same program.
-- `[visibility]`: Optional. Can be `private`, `protected`, or `public` (defaults to `private`).
-- `[abstract]`: Optional. Declares that this function can be accessed without initializing the class it belongs to.
-- `[static]`: Optional. Declares a class-level function.
-
-#### Function Declaration Components
-
-- **functionName**: Required. Must follow camelCase.
-- **Parameters**: Each parameter defined as `paramName : Type`, separated by commas.
-- **ReturnType**: Optional. Specify in parentheses after the colon. Use `void` or omit if no return value. You can have as much return values as wanted.
-- **Function Body**: Enclosed in curly braces `{}`.
-
-#### Returning Values
-
-To return values from a function, use the `return` keyword followed by the value(s) to be returned. If the function specifies multiple return types, separate the returned values with commas.
-
-```go
-func add(a : Int, b : Int) : (Int) {
-    return a + b
-}
-
-func getCoordinates() : (Int, Int) {
-    return 10, 20
-}
-```
-
-If the function does not return a value, omit the `return` statement or use `return` without arguments.
-
-```go
-func logMessage(message : SliceChar) {
-    print(message)
-
-    return
-}
-
-func logMessage(message : SliceChar) {
-    print(message)
-}
-```
-
-Return immediately from the function when certain conditions are met. This is useful for early exits or error handling:
-
-```go
-func process(value : Int) : (Bool) {
-    if (value < 0) {
-        return false    // Stop execution if value is negative
-    }
-    // Continue processing
-    return true
-}
-```
-
-##### Unrechable Code Detection
-
-If a function contains a mandatory `return` statement and unreachable code follows it, the compiler will allow compilation but will emit a warning indicating the presence of unreachable code. Unlike languages such as Golang, which treat unreachable code after a required return as a compilation error, Celeris permits it but highlights the issue to the developer during compilation.
-
-```go
-func foo() : (Int) {
-    return 42
-    print("This code is unreachable") // Warning: unreachable code
-}
-```
-
-> **Note:** While the code compiles, it is recommended to remove unreachable statements to maintain code clarity and avoid potential logic errors.
-
-#### Examples
 
 ```go
 // Public static function with parameters and return value
@@ -511,11 +604,66 @@ func initialize() {
 abstract func calculateArea() : (Double)
 ```
 
+#### 4.3.2 Function Declaration Modifiers
+
+- `[internal]`: Optional. Limits function access to the same program.
+- `[visibility]`: Optional. Can be `private`, `protected`, or `public` (defaults to `private`).
+- `[abstract]`: Optional. Declares that this function can be accessed without initializing the class it belongs to.
+- `[static]`: Optional. Declares a class-level function.
+
+#### 4.3.3 Function Declaration Components
+
+- **functionName**: Required. Must follow camelCase.
+- **Parameters**: Each parameter defined as `paramName : Type`, separated by commas.
+- **ReturnType**: Optional. Specify in parentheses after the colon. Use `void` or omit if no return value. You can have as many return values as wanted.
+- **Function Body**: Enclosed in curly braces `{}`.
+
+#### 4.3.4 Returning Values
+
+To return values from a function, use the `return` keyword followed by the value(s) to be returned. If the function specifies multiple return types, separate the returned values with commas.
+
+```go
+func add(a : Int, b : Int) : (Int) {
+    return a + b
+}
+
+func getCoordinates() : (Int, Int) {
+    return 10, 20
+}
+```
+
+If the function does not return a value, omit the `return` statement or use `return` without arguments.
+
+```go
+func logMessage(message : SliceChar) {
+    print(message)
+    return
+}
+
+func logMessage(message : SliceChar) {
+    print(message)
+}
+```
+
+#### 4.3.5 Unreachable Code Detection
+
+If a function contains a mandatory `return` statement and unreachable code follows it, the compiler will allow compilation but will emit a warning indicating the presence of unreachable code. Unlike languages such as Golang, which treat unreachable code after a required return as a compilation error, Celeris permits it but highlights the issue to the developer during compilation.
+
+```go
+func foo() : (Int) {
+    return 42
+    print("This code is unreachable") // Warning: unreachable code
+}
+```
+
+> **Note:** While the code compiles, it is recommended to remove unreachable statements to maintain code clarity and avoid potential logic errors.
+
+
 ### 4.4 Expressions
 
 Expressions in Celeris are combinations of literals, variables, operators, and function calls that evaluate to a value.
 
-#### Examples
+##### Examples
 
 ```go
 var sum = a + b * 2
@@ -524,7 +672,7 @@ var message = "Hello, " + name
 var result = calculateArea(width, height)
 ```
 
-#### String Interpolation
+#### 4.4.1 String Interpolation
 
 SliceChar literals support string interpolation using `$variable` syntax:
 
@@ -532,11 +680,11 @@ SliceChar literals support string interpolation using `$variable` syntax:
 var greeting = "Hello, $userName!"
 ```
 
-#### String Mutability
+#### 4.4.2 String Mutability
 
 `SliceChar` is a mutable string type with a fixed initial size that can be changed dynamically. This means its contents can be modified (characters replaced, appended, or removed), but its mutability is limited by the current allocated size. Expanding or shrinking requires resizing the underlying storage.
 
-#### Function Calls
+#### 4.4.3 Function Calls
 
 Functions can be called within expressions:
 
@@ -544,7 +692,7 @@ Functions can be called within expressions:
 var area = getWidth() * getHeight()
 ```
 
-#### Conditional Expressions
+#### 4.4.4 Conditional Expressions
 
 Celeris supports conditional (ternary-like) expressions:
 
@@ -552,7 +700,7 @@ Celeris supports conditional (ternary-like) expressions:
 var status = isActive ? "Active" : "Inactive"
 ```
 
-#### Assignment Expressions
+#### 4.4.5 Assignment Expressions
 
 Assignment is also an expression and can be chained:
 
@@ -560,9 +708,9 @@ Assignment is also an expression and can be chained:
 var x = y = z = 0
 ```
 
-#### Type Casting
+#### 4.4.6 Type Casting
 
-##### Explicit Casting
+##### 4.4.6.1 Explicit Casting
 
 Explicit type casting is often used when implicit casting is not possible. This typically occurs when converting between types where information may be lost. For example, casting from `Int<8>` to `Int<2>` results in the loss of 252 possible values, or casting from `Float` to `Int` discards the decimal part.
 
@@ -582,12 +730,13 @@ var dog : Dog = ((Dog) pet)                      // Casts Pet to Dog
 // If the cast is invalid, a runtime error is thrown.
 ```
 
-##### Implicit Casting
+##### 4.4.6.2 Implicit Casting
 
 Implicit type casting occurs automatically when there is no loss of information and the conversion is safe. For example, converting from `Int<2>` to `Int<32>` preserves all data, or converting from `Int` to `Float` simply adds precision without losing values. In these cases, no additional code is required, and implicit casting is commonly used in function parameters and assignments.
 
 ### 4.5 Classes, Interfaces and Enums
-#### Classes
+
+#### 4.5.1 Classes
 
 Classes are user-defined types that encapsulate data and behavior.
 
@@ -621,7 +770,7 @@ class Dog : Pet {
 }
 ```
 
-#### Class Declaration Syntax
+#### 4.5.2 Class Declaration Syntax
 
 ```go
 [internal] [visibility] [abstract] class ClassName {
@@ -643,7 +792,7 @@ class Dog : Pet {
 
 - Both `internal` and `visibility` are independent modifiers, so combinations like `internal public` or `internal private` are valid.
 
-#### `this` and `super` Usage
+#### 4.5.3 `this` and `super` Usage
 
 - `this` refers to the current instance of the class. Use `this` to access member variables and functions from within the class.
 
@@ -698,7 +847,7 @@ class Dog : Pet {
 
 > **Note:** Use `this` for accessing the current object's members, and `super` for accessing parent class members or constructors.
 
-#### Abstract Classes
+#### 4.5.4 Abstract Classes
 
 Abstract classes are special classes that cannot be instantiated directly and may contain abstract functions (functions without implementation). They serve as base classes for other classes to inherit and implement the abstract functions. Abstract classes may also contain functions with implementations.
 
@@ -724,19 +873,19 @@ class Cat : Animal {
 }
 ```
 
-#### Inheritance
+#### 4.5.5 Inheritance
 
-A class can inherit from a single base class or abstract class and implement multiple interfaces:
+A class can inherit from a single base class or abstract class and implement _multiple interfaces_:
 
 ```go
-class Square : Rectangle, Drawable {
+class Square : Rectangle, Drawable {            // Rectangle : Class | Drawable : Interface
     func draw() {
         print("Drawing square of size $width")
     }
 }
 ```
 
-#### Constructors
+#### 4.5.6 Constructors
 
 Classes can define constructors for initialization:
 
@@ -752,7 +901,7 @@ class Point {
 }
 ```
 
-#### Object Instantiation
+#### 4.5.7 Object Instantiation
 
 To create a new object, simply call the class constructor as a function with the required parameters. The `new` keyword is not necessary; the compiler will detect object creation automatically.
 
@@ -772,7 +921,7 @@ If the constructor requires no parameters, you can omit the arguments:
 var empty = UserProfile()
 ```
 
-#### Interfaces
+#### 4.5.8 Interfaces
 
 Interfaces define a contract of functions that implementing classes must provide.
 
@@ -782,7 +931,7 @@ interface Drawable {
 }
 ```
 
-#### Enumerations
+#### 4.5.9 Enumerations
 
 Enums are user-defined types representing a set of named constants.
 
@@ -794,30 +943,66 @@ enum Color {
 }
 ```
 
+#### 4.5.9.2 Enumerations with Values
+
+You can assign values to enum members by specifying a type in the enum declaration and providing values in the constructor. This is useful for representing enums with associated data, such as status codes.
+
+```go
+enum HttpStatus(Int) {
+    OK = 200,
+    NOT_FOUND = 404,
+    INTERNAL_ERROR = 500
+}
+```
+
+##### 4.5.9.3 Enum Methods and Properties
+
+```go
+enum Direction {
+    NORTH,
+    SOUTH,
+    EAST,
+    WEST
+
+    func opposite() : (Direction) {
+        switch (this) {
+            case NORTH: return SOUTH
+            case SOUTH: return NORTH
+            case EAST: return WEST
+            case WEST: return EAST
+        }
+    }
+
+    func toString() : (SliceChar) {
+        switch (this) {
+            case NORTH: return "North"
+            case SOUTH: return "South"
+            case EAST: return "East"
+            case WEST: return "West"
+        }
+    }
+}
+```
+
+##### 4.5.9.4 Using Enumerations
+
+```go
+var currentDirection : Direction = Direction.NORTH
+var status : HttpStatus = HttpStatus.OK
+
+if (currentDirection == Direction.NORTH) {
+    print("Moving north")
+}
+
+var oppositeDir = currentDirection.opposite()
+print("Opposite direction: $oppositeDir.toString()")
+```
+
 ### 4.6 Statements
 
 Statements in Celeris are instructions that perform actions such as variable assignment, function calls, control flow, and exception handling. Each statement can end with a semicolon (`;`), though it may be optional for inline statements.
 
-#### Example Statements
-
-```go
-var x : Int = 10                // Variable declaration with assignment
-x += 5                          // Assignment statement
-
-print("Value of X: $x")         // Function call statement
-
-// Conditional statement
-if (x > 10) {
-    print(i);                   // Function call with optional semicolon (;)
-}
-
-// Loop statement
-for (var i = 0; i < 5; i++) {   // Loop variable assignment; Loop condition; Loop condition pass statement
-    print(i)
-}
-```
-
-#### Statement Types
+#### 4.6.1 Statement Types
 
 - **Declaration Statements:** Define variables, constants, classes, functions, etc.
 - **Assignment Statements:** Assign values to variables.
@@ -830,11 +1015,11 @@ for (var i = 0; i < 5; i++) {   // Loop variable assignment; Loop condition; Loo
 
 > **Note:** Statements can be nested within blocks `{}` to form compound statements.
 
-#### 4.6.1 Control Flow Statements
+#### 4.6.2 Control Flow Statements
 
 Control flow statements determine the execution path of a program based on conditions or branching logic.
 
-#### Conditional Statements
+##### 4.6.2.1 Conditional Statements
 
 - **If Statement:** Executes a block if the condition is true.
     ```go
@@ -881,7 +1066,7 @@ Control flow statements determine the execution path of a program based on condi
 
 > **Note:** If a `break` statement is omitted in a `switch` case, the compiler will not allow compilation and will emit an error.
 
-#### Branching Statements
+##### 4.6.2.2 Branching Statements
 
 - **Break:** Exits the nearest enclosing loop or switch.
     ```go
@@ -900,9 +1085,7 @@ Control flow statements determine the execution path of a program based on condi
 
 > Control flow statements can be nested and combined to express complex logic.
 
-#### 4.6.2 Loop Statements
-
-##### Loop Statements
+#### 4.6.3 Loop Statements
 
 Celeris supports several loop constructs for iterative execution:
 
@@ -970,12 +1153,12 @@ for (num in numbers) {
 
 Exception handling in Celeris is performed using `try`, `catch`, `finally`, and `throw` statements. These constructs allow you to manage errors and exceptional conditions gracefully.
 
-#### Try-Catch-Finally Syntax
+##### 4.6.3.1 Try-Catch-Finally Syntax
 
 ```go
 try {
     // Code that may throw an exception
-} catch (var e : ExceptionType) {
+} catch (e : ExceptionType) {
     // Handle exception
 } finally {
     // Code that always executes (optional)
@@ -986,7 +1169,7 @@ try {
 - The `catch` block handles exceptions of the specified type.
 - The `finally` block executes regardless of whether an exception was thrown.
 
-#### Throwing Exceptions
+##### 4.6.3.2 Throwing Exceptions
 
 Use the `throw` statement to raise an exception:
 
@@ -994,28 +1177,28 @@ Use the `throw` statement to raise an exception:
 throw ExceptionType("Error message")
 ```
 
-#### Multiple Catch Blocks
+##### 4.6.3.3 Multiple Catch Blocks
 
 You can use multiple `catch` blocks to handle different exception types:
 
 ```go
 try {
     // Code
-} catch (var e : IOException) {
+} catch (e : IOException) {
     // Handle IO error
-} catch (var e : NullPointerException) {
+} catch (e : NullPointerException) {
     // Handle null pointer error
 }
 ```
 
-#### Example
+###### Example
 
 ```go
 func readFile(path : SliceChar) : (SliceChar) {
     try {
         var content = File.read(path)
         return content
-    } catch (var e : FileNotFoundException) {
+    } catch (e : FileNotFoundException) {
         print("File not found: $path")
         throw e
     } finally {
@@ -1026,10 +1209,9 @@ func readFile(path : SliceChar) : (SliceChar) {
 
 > **Note:** If an exception is not caught, it propagates up the call stack. Use `throws` in function signatures to declare possible exceptions.
 
+### 4.7 Collections
 
-### 4.7 Lists
-
-#### 4.7.1 Type of Lists
+#### 4.7.1 Type of Collections
 
 Celeris provides several built-in list and collection types:
 
@@ -1045,11 +1227,9 @@ Celeris provides several built-in list and collection types:
 
 Each collection type provides methods for adding, removing, and accessing elements according to its semantics.
 
-#### 4.7.2 Lists Inheritance
+#### 4.7.2 Collection Inheritance
 
-#### List Inheritance and Custom Collections
-
-Lists and other collections in Celeris can be extended to create custom data structures. You can inherit from built-in collection types and override or add methods as needed.
+Collections in Celeris can be extended to create custom data structures. You can inherit from built-in collection types and override or add methods as needed.
 
 ```go
 class CustomList : List<Int> {
@@ -1077,7 +1257,7 @@ class UniqueList : List<Int>, Set<Int> {
 
 > **Note:** When inheriting from a collection type, ensure that you maintain the semantics of the base type (e.g., ordering for `List`, uniqueness for `Set`).
 
-#### Generic Collections
+#### 4.7.3 Generic Collections
 
 Collections can be generic, allowing you to specify the type of elements they contain:
 
@@ -1085,8 +1265,6 @@ Collections can be generic, allowing you to specify the type of elements they co
 var stringList : List<SliceChar> = List<SliceChar>()
 var intSet : Set<Int> = Set<Int>()
 ```
-
-> **Tip:** Use inheritance and interfaces to build specialized collections tailored to your application's needs.
 
 ### 4.8 Using
 
@@ -1100,18 +1278,24 @@ using dev.zanckor.UserProfile  // imports just UserProfile
 using dev.zanckor.*            // imports all members from package dev/zanckor
 ```
 
-#### Renaming to avoid conflicts
+#### 4.8.1 Renaming to avoid conflicts
 You can rename an imported class or package using the `as` keyword for easier reference. For example:
 
 ```c++
 using dev.zanckor.MathUtility as Math
 ```
 
-#### Rules
+#### 4.8.2 Rules
 
 - Just public members are accessible
 - `internal` cannot be used outside the same program
 - Avoid using Wildcard imports to avoid namespace conflicts.
+
+#### 4.9 Advanced Language Features
+
+##### 4.9.1 Lambda Expressions
+
+##### 4.9.2 Function Extension
 
 ---
 
@@ -1121,7 +1305,71 @@ using dev.zanckor.MathUtility as Math
 Memory management in Celeris is designed to balance safety, performance, and developer control. The language provides both automatic and manual memory management mechanisms, allowing developers to choose the most appropriate strategy for their use case.
 
 
+### 5.1 Automatic Memory Management
 
+#### 5.1.1 Garbage Collection (GC)
+
+#### 5.1.2 GC Behaviour & System Impact
+
+#### 5.1.3 Automatic Stack vs Heap allocation
+
+#### 5.1.4 Generational GC / Reference counting
+
+#### 5.1.5 Recommended use scenarious
+
+### 5.2 Manual Memory Management
+
+#### 5.2.1 Allocate / Delete (heap management)
+
+#### 5.2.2 Scope-based resource management allocation
+
+#### 5.2.3 Ownership & responsabilidades
+
+#### 5.2.4 Avoiding double free & dangling pointers
+
+#### 5.2.5 Memory pools & object reuse
+
+### 5.3 Punteros (Pointers)
+
+#### 5.3.1 Declaration & unreference (* y &)
+
+#### 5.3.2 Null pointers & runtime errors
+
+#### 5.3.3 Const pointers & punteros read-only
+
+#### 5.3.4 Pointers and functions (Reference parameters)
+
+#### 5.3.5 Difference between pointers and safe references (ref)
+
+#### 5.3.6 Pointer arithmetic
+
+### 5.4 Memory Safety
+
+#### 5.4.1 Dangling pointers & safe usage
+
+#### 5.4.2 Bounds checking on arrays / slices
+
+#### 5.4.3 Immutable vs mutable objects
+
+#### 5.4.4 Thread-safe memory access
+
+### 5.5 Performance Considerations
+
+#### 5.5.1 Minimize GC pauses
+
+#### 5.5.2 Avoid memory fragmentation
+
+#### 5.5.3 Optimization for threads and concurrency
+
+#### 5.5.4 Memory pooling & caching
+
+### 5.6 Advanced Features
+
+#### 5.6.1 Smart pointers / RAII wrappers
+
+#### 5.6.2 Weak references for temporary objects
+
+#### 5.6.3 Finalizers / destructors
 
 
 ---

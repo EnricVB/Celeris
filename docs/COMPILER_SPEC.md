@@ -1,9 +1,9 @@
 # COMPILER_SPEC.md
-# Specs of CSpeedy Compiler **CSAOT**
+# Specs of Celeris Compiler
 
 ## 1. Executive Summary
-**CSAOT** is an experimental compiler for the Language **CSpeedy**.
-His goal is aim to compile any program write on CSpeedy to be executable.
+**CSAOT** is an experimental compiler for the Language **Celeris**.
+His goal is aim to compile any program write on Celeris to be executable.
 
 This compiler aims to be a **Functional MVP** with support for:
 - Constants and Variables with basic types
@@ -20,16 +20,16 @@ This compiler aims to be a **Functional MVP** with support for:
 - Functions and calls
 
 ## 2. Memory Management 
-Like languages such as `Go` or `C++`, `CSpeedy` allows developers to manage memory and work with pointers across functions. However, if you don't need fine-grained control over data, `CSpeedy` handles memory management automatically.
+Like languages such as `Go` or `C++`, `Celeris` allows developers to manage memory and work with pointers across functions. However, if you don't need fine-grained control over data, `Celeris` handles memory management automatically.
 
-When a `pointer` is no longer used within the method where it was created or passed as a parameter, `CSpeedy` automatically removes it. Variables that are not used as `pointers` or parameters are automatically freed once the function finishes executing.
+When a `pointer` is no longer used within the method where it was created or passed as a parameter, `Celeris` automatically removes it. Variables that are not used as `pointers` or parameters are automatically freed once the function finishes executing.
 
 ### Benefits
 - **Safety**: Automatic cleanup reduces memory leaks.
 - **Flexibility**: Developers can still use pointers when needed.
 - **Simplicity**: No need for manual memory management in common cases.
 
-### Example using CSpeedy
+### Example using Celeris
 ```go
 func processData(dataPointer* : any) {
     var data : Number = 1
@@ -37,12 +37,12 @@ func processData(dataPointer* : any) {
     endsProcessingData(dataPointer)
     // `data` will be automatically freed here as the function ends
     // `dataPointer` is still valid inside `endsProcessingData`
-    // In CSpeedy, memory cleanup is sequential, so this ensures safety and predictability
+    // In Celeris, memory cleanup is sequential, so this ensures safety and predictability
 }
 
 func endsProcessingData(dataPointer* : any) {
     // `dataPointer` can still be used here
-    // No action needed; CSpeedy handles memory automatically
+    // No action needed; Celeris handles memory automatically
 }
 ```
 

@@ -1,14 +1,14 @@
-# CSpeedy Compiler Specification
+# Celeris Compiler Specification
 
 ## 1. Overview
 
-Language for CSpeedy designed to be read by **CSAOT**.
+Language for Celeris designed to be read by **CSAOT**.
 
 ---
 
 ## 2. Lexical Structure
 
-The lexical structure of CSpeedy MiniLang consists of the following elements:
+The lexical structure of Celeris MiniLang consists of the following elements:
 
 ### 2.1 Whitespace
 
@@ -58,9 +58,15 @@ Identifiers are names for variables, functions, classes, etc. They must start wi
 
 #### Packages
 
-Package names must be singular, in lowercase, and use camelCase if composed.
+Package names must be singular, in lowercase.
+In case for composed packages, you can both keep it all in lowercase, or use an underscore. 
 
-**Example:** `mathUtility`
+Anyway, it is recommended to use non composed names for packages.
+
+If the package name begins with a digit or any other illegal character, the suggested convention is to add an underscore aswell.
+
+**Example:** `mathutility` or `math_utility`
+**Underscore Example:** `_2025exercise`
 
 #### Classes
 
@@ -212,7 +218,7 @@ String and character literals support escape sequences such as `\n` (newline), `
 
 ## 3. Type System
 
-CSpeedy supports a variety of built-in types and allows for user-defined types.
+Celeris supports a variety of built-in types and allows for user-defined types.
 
 ### 3.1 Primitive Types
 
@@ -279,7 +285,7 @@ var user : UserProfile  // user is null
 
 ### 4.1 Variables
 
-Variables in CSpeedy are declared using the `var` keyword, followed by the variable name and an optional type annotation. Initialization can be performed at the time of declaration.
+Variables in Celeris are declared using the `var` keyword, followed by the variable name and an optional type annotation. Initialization can be performed at the time of declaration.
 
 #### Declaration Syntax
 
@@ -318,7 +324,7 @@ var user : UserProfile = new UserProfile()
 
 #### Multiple Assignment
 
-CSpeedy supports multiple assignment, allowing you to assign values to several variables simultaneously:
+Celeris supports multiple assignment, allowing you to assign values to several variables simultaneously:
 
 ```go
 var a, b, c = 1, 2, 3
@@ -338,7 +344,7 @@ var name, age, isActive = getUserInfo()
 
 #### Type Inference
 
-CSpeedy supports type inference, allowing the compiler to automatically deduce the type of a variable from its initializer:
+Celeris supports type inference, allowing the compiler to automatically deduce the type of a variable from its initializer:
 
 ```go
 var inferred = 42        // Type inferred as Int
@@ -433,7 +439,7 @@ abstract func calculateArea() : (Double)
 
 ### 4.4 Expressions
 
-Expressions in CSpeedy are combinations of literals, variables, operators, and function calls that evaluate to a value.
+Expressions in Celeris are combinations of literals, variables, operators, and function calls that evaluate to a value.
 
 #### Examples
 
@@ -466,7 +472,7 @@ var area = getWidth() * getHeight()
 
 #### Conditional Expressions
 
-CSpeedy supports conditional (ternary-like) expressions:
+Celeris supports conditional (ternary-like) expressions:
 
 ```go
 var status = isActive ? "Active" : "Inactive"

@@ -203,6 +203,7 @@ The language is tokenized into keywords, identifiers, literals, operators, and d
 | `CONST` | Constant value declaration |
 | `PACKAGE` | Package declaration |
 | `USING` | Import or include another package/module |
+| `AS` | Used to rename an imported class or package for easier reference |
 | `TRUE` | Boolean true value |
 | `FALSE` | Boolean false value |
 | `NULL` | Null reference |
@@ -226,9 +227,9 @@ Celeris supports a variety of built-in types and allows for user-defined types.
 |------|-------------|------|-------|
 | `Bool` | Boolean type (true/false) | 1 byte | `true` / `false` |
 | `Char` | A single character | 1 byte | 0 to 255 |
-| `SliceChar` | An array of resizable chars. Length can change | variable (Default 255 Chars) | Depends on length |
-| `Int<T>` | Integer type of a number. You can specify the bytes this Integer will have. By default 32. | 4 bytes | -2,147,483,648 to 2,147,483,647 |
-| `Byte` | Smallest data type | 1 byte | 0 to 255 |
+| `SliceChar` | An array of resizable chars. Length can't change but content is mutable | variable (Default 255 Chars) | Depends on length |
+| `Int<T>` | Integer type of a number. You can specify the bytes this Integer will have. By default 32. If an overflow or underflow occurs, a compilation error will be thrown. | 4 bytes | -2,147,483,648 to 2,147,483,647 |
+| `Byte` | Smallest data type. | 1 byte | 0 to 255 |
 | `Short` | Small integer | 2 bytes | -32,768 to 32,767 |
 | `Long` | Large integer | 8 bytes | -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807 |
 | `Float` | Single precision floating point | 4 bytes | ±1.18×10⁻³⁸ to ±3.4×10³⁸ |
@@ -304,6 +305,19 @@ var age : Int
 var name : SliceChar
 var isActive : Bool
 ```
+
+#### Scope
+The scope of variables in Celeris is always local to the block in which they are declared. If a variable is defined inside a function, it is only accessible within that function. Class member variables have class-level scope, meaning they can be accessed from anywhere you have a reference to the class instance. For example, if you declare:
+
+```go
+var dog = Dog("Thunder")
+```
+
+you can access `dog.name` wherever `dog` is in scope.
+
+Static variables, on the other hand, have global scope within the program, provided their visibility allows access. Static members can be accessed without creating an instance of the class, and their lifetime is tied to the program execution.
+
+The `internal` modifier restricts scope to within the same compilation program. Members marked as `internal` are only accessible from code that is part of the same compiled program, and not from external libraries or modules.
 
 #### Initialization
 
@@ -571,7 +585,6 @@ var dog : Dog = ((Dog) pet)                      // Casts Pet to Dog
 Implicit type casting occurs automatically when there is no loss of information and the conversion is safe. For example, converting from `Int<2>` to `Int<32>` preserves all data, or converting from `Int` to `Float` simply adds precision without losing values. In these cases, no additional code is required, and implicit casting is commonly used in function parameters and assignments.
 
 ### 4.5 Classes, Interfaces and Enums
-
 #### Classes
 
 Classes are user-defined types that encapsulate data and behavior.
@@ -627,6 +640,61 @@ class Dog : Pet {
 - `abstract`: Optional modifier. When specified, the class will be considered an Abstract class.
 
 - Both `internal` and `visibility` are independent modifiers, so combinations like `internal public` or `internal private` are valid.
+
+#### `this` and `super` Usage
+
+- `this` refers to the current instance of the class. Use `this` to access member variables and functions from within the class.
+
+    ```go
+    class Person {
+        var name : SliceChar
+
+        func printName() {
+            print(this.name) // Accesses the current instance's name
+        }
+    }
+    ```
+    
+    > Note: If you have multiple variables named `name` and use `print(name)` it will choose first the closest variable, so to use class variable `name` you must use `this.name`.
+
+- `super` is used in a subclass to access functions or constructors from its parent class. Use `super` to call the parent implementation or constructor.
+
+    ```go
+    class Animal {
+        func makeSound() {
+            print("Generic animal sound")
+        }
+    }
+
+    class Dog : Animal {
+        func makeSound() {
+            super.makeSound() // Calls Animal's makeSound
+            print("Woof!")
+        }
+    }
+    ```
+
+    You can also use `super` in constructors to initialize the parent class:
+
+    ```go
+    class Rectangle {
+        var width : Int
+        var height : Int
+
+        Rectangle(w : Int, h : Int) {
+            this.width = w
+            this.height = h
+        }
+    }
+
+    class Square : Rectangle {
+        Square(size : Int) {
+            super(size, size) // Calls Rectangle's constructor
+        }
+    }
+    ```
+
+> **Note:** Use `this` for accessing the current object's members, and `super` for accessing parent class members or constructors.
 
 #### Abstract Classes
 
@@ -1036,9 +1104,31 @@ func example() {
 
 ### 4.8 Using
 
-*[Content to be added]*
+`using` keyword imports classes, interfaces, or entire packages into the current file, granting access to their public members. Example:
+
+```c++
+package dev.zanckor.Main
+
+using dev.zanckor.MathUtility  // imports just MathUtility
+using dev.zanckor.UserProfile  // imports just UserProfile
+using dev.zanckor.*            // imports all members from package dev/zanckor
+```
+
+#### Renaming to avoid conflicts
+You can rename an imported class or package using the `as` keyword for easier reference. For example:
+
+```c++
+using dev.zanckor.MathUtility as Math
+```
+
+#### Rules
+
+- Just public members are accessible
+- `internal` cannot be used outside the same program
+- Avoid using Wildcard imports to avoid namespace conflicts.
 
 ---
+
 
 ## 5. Memory Management
 

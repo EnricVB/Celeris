@@ -163,6 +163,8 @@ The language is tokenized into keywords, identifiers, literals, operators, and d
 | `CONTINUE` | Skip to next iteration of loop |
 | `RETURN` | Return from function |
 | `DELETE` | Manual memory deallocation |
+| `NEW`    | Manual memory allocation (object/instance creation) |
+
 
 #### Error Handling Words
 
@@ -966,8 +968,6 @@ for (num in numbers) {
 
 #### 4.6.3 Exception Handling Statements
 
-### 4.6.3 Exception Handling Statements
-
 Exception handling in Celeris is performed using `try`, `catch`, `finally`, and `throw` statements. These constructs allow you to manage errors and exceptional conditions gracefully.
 
 #### Try-Catch-Finally Syntax
@@ -1088,20 +1088,6 @@ var intSet : Set<Int> = Set<Int>()
 
 > **Tip:** Use inheritance and interfaces to build specialized collections tailored to your application's needs.
 
-#### 4.7.3 Stream Operations
-
-Stream provides functional iteration over collections:
-
-```go
-func example() {
-    var data : Number[] = null
-
-    for (obj in data) {
-        // Stream operations
-    }
-}
-```
-
 ### 4.8 Using
 
 `using` keyword imports classes, interfaces, or entire packages into the current file, granting access to their public members. Example:
@@ -1132,19 +1118,11 @@ using dev.zanckor.MathUtility as Math
 
 ## 5. Memory Management
 
-*[Content to be added]*
+Memory management in Celeris is designed to balance safety, performance, and developer control. The language provides both automatic and manual memory management mechanisms, allowing developers to choose the most appropriate strategy for their use case.
 
-### 5.1 Automatic Memory Management
 
-*[Content to be added]*
 
-### 5.2 Manual Memory Management
 
-*[Content to be added]*
-
-### 5.3 Garbage Collection
-
-*[Content to be added]*
 
 ---
 

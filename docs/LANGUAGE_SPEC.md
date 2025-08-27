@@ -295,7 +295,7 @@ var <variableName> : <Type?>
 
 - `var` is the keyword for variable declaration
 - `variableName` is the identifier for the variable (must be unique in context)
-- `Type` is the data type of the variable (must be inferred)
+- `Type` is the data type of the variable (can be infered if initialized)
 
 #### Examples
 
@@ -406,14 +406,72 @@ Functions are declared using the `func` keyword:
 }
 ```
 
-- **[internal]:** Optional. Limits function access to the same program
-- **[visibility]:** Optional. Can be `private`, `protected`, or `public` (defaults to `private`)
-- **[abstract]:** Optional. Declares that this function can be accesed without initializating the class it belongs to
-- **[static]:** Optional. Declares a class-level function
-- **functionName:** Required. Must follow camelCase
-- **Parameters:** Each parameter defined as `paramName : Type`, separated by commas
-- **ReturnType:** Optional. Specify in parentheses after the colon. Use `void` or omit if no return value
-- **Function Body:** Enclosed in curly braces `{}`
+#### Function Declaration Modifiers
+
+- `[internal]`: Optional. Limits function access to the same program.
+- `[visibility]`: Optional. Can be `private`, `protected`, or `public` (defaults to `private`).
+- `[abstract]`: Optional. Declares that this function can be accessed without initializing the class it belongs to.
+- `[static]`: Optional. Declares a class-level function.
+
+#### Function Declaration Components
+
+- **functionName**: Required. Must follow camelCase.
+- **Parameters**: Each parameter defined as `paramName : Type`, separated by commas.
+- **ReturnType**: Optional. Specify in parentheses after the colon. Use `void` or omit if no return value. You can have as much return values as wanted.
+- **Function Body**: Enclosed in curly braces `{}`.
+
+#### Returning Values
+
+To return values from a function, use the `return` keyword followed by the value(s) to be returned. If the function specifies multiple return types, separate the returned values with commas.
+
+```go
+func add(a : Int, b : Int) : (Int) {
+    return a + b
+}
+
+func getCoordinates() : (Int, Int) {
+    return 10, 20
+}
+```
+
+If the function does not return a value, omit the `return` statement or use `return` without arguments.
+
+```go
+func logMessage(message : SliceChar) {
+    print(message)
+
+    return
+}
+
+func logMessage(message : SliceChar) {
+    print(message)
+}
+```
+
+Return immediately from the function when certain conditions are met. This is useful for early exits or error handling:
+
+```go
+func process(value : Int) : (Bool) {
+    if (value < 0) {
+        return false    // Stop execution if value is negative
+    }
+    // Continue processing
+    return true
+}
+```
+
+##### Unrechable Code Detection
+
+If a function contains a mandatory `return` statement and unreachable code follows it, the compiler will allow compilation but will emit a warning indicating the presence of unreachable code. Unlike languages such as Golang, which treat unreachable code after a required return as a compilation error, Celeris permits it but highlights the issue to the developer during compilation.
+
+```go
+func foo() : (Int) {
+    return 42
+    print("This code is unreachable") // Warning: unreachable code
+}
+```
+
+> **Note:** While the code compiles, it is recommended to remove unreachable statements to maintain code clarity and avoid potential logic errors.
 
 #### Examples
 
@@ -668,29 +726,299 @@ enum Color {
 
 ### 4.6 Statements
 
-*[Content to be added]*
+Statements in Celeris are instructions that perform actions such as variable assignment, function calls, control flow, and exception handling. Each statement can end with a semicolon (`;`), though it may be optional for inline statements.
+
+#### Example Statements
+
+```go
+var x : Int = 10                // Variable declaration with assignment
+x += 5                          // Assignment statement
+
+print("Value of X: $x")         // Function call statement
+
+// Conditional statement
+if (x > 10) {
+    print(i);                   // Function call with optional semicolon (;)
+}
+
+// Loop statement
+for (var i = 0; i < 5; i++) {   // Loop variable assignment; Loop condition; Loop condition pass statement
+    print(i)
+}
+```
+
+#### Statement Types
+
+- **Declaration Statements:** Define variables, constants, classes, functions, etc.
+- **Assignment Statements:** Assign values to variables.
+- **Expression Statements:** Evaluate expressions, often for side effects.
+- **Control Flow Statements:** Direct program execution (e.g., `if`, `for`, `while`, `switch`).
+- **Loop Statements:** Repeat actions (e.g., `for`, `while`, `do-while`, `stream`).
+- **Exception Handling Statements:** Manage errors (`try`, `catch`, `finally`, `throw`).
+- **Return Statements:** Return values from functions.
+- **Break/Continue Statements:** Alter loop execution.
+
+> **Note:** Statements can be nested within blocks `{}` to form compound statements.
 
 #### 4.6.1 Control Flow Statements
 
-*[Content to be added]*
+Control flow statements determine the execution path of a program based on conditions or branching logic.
+
+#### Conditional Statements
+
+- **If Statement:** Executes a block if the condition is true.
+    ```go
+    if (condition) {
+        // code if condition is true
+    }
+    ```
+
+- **If-Else Statement:** Executes one block if the condition is true, another if false.
+    ```go
+    if (condition) {
+        // code if true
+    } else {
+        // code if false
+    }
+    ```
+
+- **Else If Statement:** Chains multiple conditions.
+    ```go
+    if (a > b) {
+        // code
+    } else if (a == b) {
+        // code
+    } else {
+        // code
+    }
+    ```
+
+- **Switch Statement:** Selects execution based on the value of an expression.
+
+    ```go
+    switch (value) {
+        case 1:
+            // code for case 1
+            break
+        case 2:
+            // code for case 2
+            break
+        default:
+            // code if no case matches
+            break
+    }
+    ```
+
+> **Note:** If a `break` statement is omitted in a `switch` case, the compiler will not allow compilation and will emit an error.
+
+#### Branching Statements
+
+- **Break:** Exits the nearest enclosing loop or switch.
+    ```go
+    break
+    ```
+
+- **Continue:** Skips to the next iteration of the loop.
+    ```go
+    continue
+    ```
+
+- **Return:** Exits a function and optionally returns a value.
+    ```go
+    return value
+    ```
+
+> Control flow statements can be nested and combined to express complex logic.
 
 #### 4.6.2 Loop Statements
 
-*[Content to be added]*
+##### Loop Statements
+
+Celeris supports several loop constructs for iterative execution:
+
+- **For Loop:** Iterates a block of code a specific number of times.
+
+    ```go
+    for (var i = 0; i < 10; i++) {
+        print(i)
+    }
+    ```
+
+    - Initialization: `var i = 0`
+    - Condition: `i < 10`
+    - Step: `i++` (increment after each iteration)
+
+- **While Loop:** Repeats a block as long as the condition is true.
+
+    ```go
+    while (condition) {
+        // code to execute
+    }
+    ```
+
+- **Do-While Loop:** Executes the block at least once, then repeats while the condition is true.
+
+    ```go
+    do {
+        // code to execute
+    } while (condition)
+    ```
+
+- **Stream Loop:** Iterates over collections in a functional style.
+
+    ```go
+    for (element in collection) {
+        // code using element
+    }
+    ```
+
+> **Note:** All loop statements can use `break` to exit early or `continue` to skip to the next iteration.
+
+##### Example
+
+```go
+var numbers : Int[] = [1, 2, 3, 4, 5]
+
+for (var i = 0; i < numbers.length; i++) {
+    print(numbers[i])
+}
+
+while (flag) {
+    // Repeat while flag is true
+}
+
+do {
+    // Execute at least once
+} while (shouldRepeat)
+
+for (num in numbers) {
+    print(num)
+}
+```
 
 #### 4.6.3 Exception Handling Statements
 
-*[Content to be added]*
+### 4.6.3 Exception Handling Statements
+
+Exception handling in Celeris is performed using `try`, `catch`, `finally`, and `throw` statements. These constructs allow you to manage errors and exceptional conditions gracefully.
+
+#### Try-Catch-Finally Syntax
+
+```go
+try {
+    // Code that may throw an exception
+} catch (var e : ExceptionType) {
+    // Handle exception
+} finally {
+    // Code that always executes (optional)
+}
+```
+
+- The `try` block contains code that may raise exceptions.
+- The `catch` block handles exceptions of the specified type.
+- The `finally` block executes regardless of whether an exception was thrown.
+
+#### Throwing Exceptions
+
+Use the `throw` statement to raise an exception:
+
+```go
+throw ExceptionType("Error message")
+```
+
+#### Multiple Catch Blocks
+
+You can use multiple `catch` blocks to handle different exception types:
+
+```go
+try {
+    // Code
+} catch (var e : IOException) {
+    // Handle IO error
+} catch (var e : NullPointerException) {
+    // Handle null pointer error
+}
+```
+
+#### Example
+
+```go
+func readFile(path : SliceChar) : (SliceChar) {
+    try {
+        var content = File.read(path)
+        return content
+    } catch (var e : FileNotFoundException) {
+        print("File not found: $path")
+        throw e
+    } finally {
+        print("Read operation finished.")
+    }
+}
+```
+
+> **Note:** If an exception is not caught, it propagates up the call stack. Use `throws` in function signatures to declare possible exceptions.
+
 
 ### 4.7 Lists
 
 #### 4.7.1 Type of Lists
 
-*[Content to be added]*
+Celeris provides several built-in list and collection types:
+
+| Type                | Description                                                                 |
+|---------------------|-----------------------------------------------------------------------------|
+| `List<T>`           | Ordered list of elements of type `T`. Supports indexing and iteration.       |
+| `Set<T>`            | Unordered collection of unique elements of type `T`. No duplicates allowed.  |
+| `Map<K, V>`         | Key-value mapping from type `K` to type `V`. Keys are unique.                |
+| `Queue<T>`          | FIFO (First-In, First-Out) queue of elements of type `T`.                    |
+| `Stack<T>`          | LIFO (Last-In, First-Out) stack of elements of type `T`.                     |
+| `PriorityQueue<T>`  | Priority queue; elements of type `T` must inherit from `PriorityType`.       |
+| `PriorityStack<T>`  | Priority stack; elements of type `T` must inherit from `PriorityType`.       |
+
+Each collection type provides methods for adding, removing, and accessing elements according to its semantics.
 
 #### 4.7.2 Lists Inheritance
 
-*[Content to be added]*
+#### List Inheritance and Custom Collections
+
+Lists and other collections in Celeris can be extended to create custom data structures. You can inherit from built-in collection types and override or add methods as needed.
+
+```go
+class CustomList : List<Int> {
+    func sum() : (Int) {
+        var total : Int = 0
+        for (item in this) {
+            total += item
+        }
+        return total
+    }
+}
+```
+
+You can also implement interfaces to provide additional behaviors:
+
+```go
+class UniqueList : List<Int>, Set<Int> {
+    func add(item : Int) {
+        if (!this.contains(item)) {
+            this.append(item)
+        }
+    }
+}
+```
+
+> **Note:** When inheriting from a collection type, ensure that you maintain the semantics of the base type (e.g., ordering for `List`, uniqueness for `Set`).
+
+#### Generic Collections
+
+Collections can be generic, allowing you to specify the type of elements they contain:
+
+```go
+var stringList : List<SliceChar> = List<SliceChar>()
+var intSet : Set<Int> = Set<Int>()
+```
+
+> **Tip:** Use inheritance and interfaces to build specialized collections tailored to your application's needs.
 
 #### 4.7.3 Stream Operations
 

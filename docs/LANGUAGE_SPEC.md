@@ -1306,15 +1306,259 @@ Memory management in Celeris is designed to balance safety, performance, and dev
 
 ### 5.1 Automatic Memory Management
 
+Automatic memory management in Celeris is primarily handled through a built-in garbage collector (GC). The GC automatically tracks object lifetimes and reclaims memory that is no longer referenced, reducing the risk of memory leaks and freeing developers from manual deallocation for most use cases.
+
+Objects allocated on the heap are monitored by the GC, which periodically scans for unreachable objects and releases their memory. Stack allocation is managed automatically by the compiler, with memory being reclaimed when variables go out of scope.
+
+Developers do not need to explicitly free memory for objects managed by the GC. However, for performance-critical scenarios or when working with resources outside the GC's control (such as file handles or network sockets), manual memory management features are available.
+
+The GC is designed to minimize pause times and system impact, using incremental and generational collection strategies. This ensures responsive applications even under heavy allocation workloads.
+
+> **Note:** While automatic memory management simplifies development, understanding GC behavior and object lifetimes is important for writing efficient and predictable code.
+
 #### 5.1.1 Garbage Collection (GC)
+
+Celeris uses a hybrid generational GC designed for multi-threaded environments, with the following structure:
+
+- **Heap Layout:**
+  - **Young Spaces:** Each thread has its own Young Space, starting at 256 KB–1 MB.
+  - **Old Generation:** Shared among all threads, organized in segregated heaps for large objects.
+- **Allocation:**
+  - Objects are allocated in the Young Space using a bump pointer.
+  - Large objects (>256 KB) are allocated faster in the Old Generation.
+- **Promotion:**
+  - Objects survive **3 Young GC cycles** before promotion to the Old Generation.
+  - Large objects survive **1 Young GC Cycle** before promotion to the Old Generation. 
+  - Static or global objects are promoted immediately.
+- **Reference Counting:**
+  - Young Space uses immediate RC.
+  - Old Generation uses Lazy RC.
+- **Cycle Collector:** Incremental CC runs on both Young and Old generations.
+- **Compactation:** Old Generation uses incremental compaction to reduce pauses.
+- **Caching & Locality:** Objects allocated by the same thread are contiguous to improve cache hits.
 
 #### 5.1.2 GC Behaviour & System Impact
 
-#### 5.1.3 Automatic Stack vs Heap allocation
+##### System Impact
 
-#### 5.1.4 Generational GC / Reference counting
+- **Thread-local Young Spaces:** Reduces lock contention and improves cache locality.
+- **Shared Old Generation:** Access controlled by region locks and write barriers.
+- **Incremental GC:** Minimizes pause times by processing Old Generation in regions.
+- **Lazy RC & CC:** Reduces GC overhead by deferring checks and collecting cycles incrementally.
+- **Memory Movement:** Handled via handle tables to avoid scanning all references.
+- **Large Object Handling:** Allocated in segregated OG regions to prevent frequent copying.
+- **Impact on Performance:**
+  - Thread-local allocations minimize synchronization overhead.
+  - Incremental and lazy approaches minimize long GC pauses.
+  - Compacting OG ensures low fragmentation and maintains spatial locality.
+##### GC Behaviour
 
-#### 5.1.5 Recommended use scenarious
+###### Life Cycle
+
+The **Garbage Collector (GC)** in Celeris manages memory by automatically allocating, promoting, and reclaiming objects. Its main goal is to efficiently handle short-lived and long-lived objects, minimizing pauses and maximizing throughput.
+
+##### Memory Regions
+
+Memory is divided into **two main regions**:
+
+###### 1. Young Generation (YG)
+
+* Contains objects that are newly created and are expected to have a short lifespan
+* Collected frequently with fast, efficient algorithms (e.g., *minor GC*)
+* Designed to be small and thread-local for fast allocation
+
+###### 2. Old Generation (OG)
+
+* Holds objects that survived multiple Young Generation collections
+* Collected less frequently, usually with a more expensive *major GC*
+* Can grow backward using a **bidirectional bump pointer**, absorbing extra Free Space dynamically
+* **Memory requests are handled by the compiler**, which always requests additional heap memory **before OG** to avoid moving OG and maintain contiguity
+* If, for any reason, the system provides memory at the end instead of before OG, the GC still handles it according to the standard plan with minimal impact
+
+> **The GC Life Cycle** in Celeris is the process through which memory is managed across these regions, including allocation in the Young Generation, promotion to the Old Generation, and reclamation of unused memory.
+
+---
+
+###### Local-Thread Dynamic Young Generations
+
+**1. Initial Assignment**
+
+Each Thread starts with **\~256 KB to 1 MB**, depending on software requirements. The total Young Generation space is about `30%` of the initial heap.
+
+**Memory Map (initial)**
+
+```
+[ YG T1 ][ Slack 1 ][ YG T2 ][ Slack 2 ][ Free Space ][ OG ]
+```
+
+Where:
+
+* **OG** = Old Generation
+* **YG Tx** = Young Generation Thread X
+
+**2. Dynamic Increase**
+
+Celeris reserves a `[ Slack ]` after each Young Generation so that a thread can extend its memory if it uses all its space.
+
+```
+[ YG T1 ][ Slack 1 ][ YG T2 ][ Slack 2 ][ Free Space ][ OG ]
+```
+
+**3. Maximum Space Reached**
+
+When a Young Generation reaches its memory pool `[YG T1 + Slack 1]`:
+
+* Memory is copied to Free Space if contiguous space is not available
+* If there is Free Space directly after the YG, no copy is needed; a new Slack is allocated there
+
+**Example State:**
+
+```
+[ YG T1 ][ Free Space ][ OG ]
+```
+
+**After Expansion:**
+
+```
+[ YG T1 ][ New Slack 1 ][ Free Space ][ OG ]
+```
+
+> This reduces unnecessary copying when memory is already contiguous.
+
+**4. Heap Bump Pointer**
+
+* Points to the next free memory location within a YG for fast allocation
+* When it reaches the end of YG, it uses the thread's Slack
+* If Slack is exhausted, memory is relocated or Free Space is expanded
+
+**5. Heap Bump Pointer on Free Memory**
+
+* When memory is released, bump pointers are not immediately updated
+* They are adjusted during the **Relocate Memory** process to point to the last allocated memory after relocation
+
+---
+
+###### Global-Thread Bidirectional Old Generation
+
+**1. Initial Assignment**
+
+* OG starts at the end of the heap and grows **backward** using a backward bump pointer
+* Initially sized to accommodate expected long-lived objects
+* **All memory requests for expansion are made by the compiler before OG** to maintain contiguity and avoid moving OG
+
+**2. Dynamic Increase**
+
+* If the system assigns more heap memory, the **extra Free Space** can be absorbed incrementally by OG
+* Bump pointer moves backward to include Free Space extra without moving existing OG objects immediately when memory is relocated
+* If memory is assigned at the end instead of before OG, the GC continues using the existing plan with minimal impact
+
+**Example of memory being assigned at the end of the heap**
+
+*Example State Before Absorption:*
+
+```
+[ YG1 ][ YG2 ][ Free Space ][ OG ← backward bump pointer ][ Free Space extra ]
+```
+
+*After Absorption of Free Space Extra:*
+
+```
+[ YG1 ][ YG2 ][ Free Space ][ OG + Free Space extra ← backward bump pointer ]
+```
+
+**3. Incremental Relocation**
+
+OG data can be **moved gradually** toward the new end of OG for contiguity:
+
+**Before:**
+
+```
+[ YG1 ][ YG2 ][ Free Space ][ ########### OOOOOOOOOO ]
+```
+
+**After:**
+
+```
+[ YG1 ][ YG2 ][ Free Space ][ OOOOOOOOOO ← backward bump pointer ########### ]
+```
+
+Legend:
+
+* `O` = New Empty memory
+* `#` = Old Space memory
+
+> Minimizes pause times by avoiding a full OG copy.
+
+**4. Free Space Release**
+
+If the old OG space becomes larger than a threshold (e.g., 50% of heap), it is released:
+
+```
+[ YG1 ][ YG2 ][ Free Space + Previous OG ][ OOOOOO ########### ]
+```
+
+This ensures efficient reuse of memory while keeping OG contiguous.
+
+**5. Heap Bump Pointer**
+
+* Indicates the current end of OG (backward)
+* Adjusted as OG absorbs Free Space extra or relocates objects
+* Never allows new YG allocations **behind OG**
+
+**6. Heap Bump Pointer on Free Memory**
+
+* When OG memory is no longer used, bump pointer is updated during the **Relocate Memory** process to point to the last allocated memory of OG
+
+###### Behaviour
+
+1. **Memory Dictionary Allocation Phase:**
+
+2. **Memory Allocation Phase:**
+
+3. **Minor Collection (Young GC):**  
+
+4. **Promotion:**
+
+5. **Major Collection (Old GC):**  
+
+6. **Cycle Collection:**  
+
+7. **Finalization:**  
+
+
+---
+
+##### Reference Counting
+
+###### Fast Reference Counting
+
+###### Lazy Reference Counting
+
+###### Behaviour
+
+---
+
+##### Cycle Collector
+
+---
+
+##### Relocate Memory
+
+###### Incremental Relocation
+
+###### Concurrent Relocation
+
+###### Behaviour
+
+
+---
+
+##### Range Segregation
+
+---
+
+##### Multi-Thread Heap 
+
 
 ### 5.2 Manual Memory Management
 

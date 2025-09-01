@@ -1327,489 +1327,324 @@ using dev.zanckor.MathUtility as Math
 
 ---
 
-
 ## 5. Memory Management
 
 Memory management in Celeris is designed to balance safety, performance, and developer control. The language provides both automatic and manual memory management mechanisms, allowing developers to choose the most appropriate strategy for their use case.
 
-### 5.1 Automatic Memory Management
+## 5.1 Automatic Memory Management
 
 Automatic memory management in Celeris is primarily handled through a built-in garbage collector (GC). The GC automatically tracks object lifetimes and reclaims memory that is no longer referenced, reducing the risk of memory leaks and freeing developers from manual deallocation for most use cases.
 
 Objects allocated on the heap are monitored by the GC, which periodically scans for unreachable objects and releases their memory. Stack allocation is managed automatically by the compiler, with memory being reclaimed when variables go out of scope.
 
-Developers do not need to explicitly free memory for objects managed by the GC. However, for performance-critical scenarios or when working with resources outside the GC's control (such as file handles or network sockets), manual memory management features are available.
-
-The GC is designed to minimize pause times and system impact, using incremental and generational collection strategies. This ensures responsive applications even under heavy allocation workloads.
+The GC is designed to minimize pause times and system impact, using **incremental** and **generational collection strategies**. This ensures responsive applications even under heavy allocation workloads.
 
 > **Note:** While automatic memory management simplifies development, understanding GC behavior and object lifetimes is important for writing efficient and predictable code.
 
-#### 5.1.1 Garbage Collection (GC)
+---
 
-Celeris uses a hybrid generational GC designed for multi-threaded environments, with the following structure:
+### 5.1.1 Garbage Collection Architecture
 
-- **Heap Layout:**
-  - **Young Spaces:** Each thread has its own Young Space, starting at 256 KB–1 MB.
-  - **Old Generation:** Shared among all threads, organized in segregated heaps for large objects.
-- **Allocation:**
-  - Objects are allocated in the Young Space using a bump pointer.
-  - Large objects (>256 KB) are allocated faster in the Old Generation.
-- **Incremental Promotion:**
-  - Objects survive **4 Young GC cycles** before promotion to the Old Generation.
-  - Large objects survive **2 Young GC Cycle** before promotion to the Old Generation. 
-  - Static or global objects are promoted immediately.
+Celeris uses a **hybrid generational GC** designed for multi-threaded environments with the following structure:
 
-  - 
-- **Reference Counting:**
-  - Young Space uses immediate RC.
-  - Old Generation uses Lazy RC.
-- **Cycle Collector:** Incremental CC runs on both Young and Old generations.
-- **Compactation:** Old Generation uses incremental compaction to reduce pauses.
-- **Caching & Locality:** Objects allocated by the same thread are contiguous to improve cache hits.
+#### Heap Layout
 
-#### 5.1.2 GC Behaviour & System Impact
+| Region | Ownership | Initial Size | Purpose |
+|--------|-----------|-------------|----------|
+| **Young Generation (YG)** | Thread-local | 512 KB - 1 MB | New, short-lived objects |
+| **Old Generation (OG)** | Shared | Variable | Long-lived objects and large allocations |
 
-##### System Impact
+#### Cards Layout
 
-- **Thread-local Young Spaces:** Reduces lock contention and improves cache locality.
-- **Shared Old Generation:** Access controlled by region locks and write barriers.
-- **Incremental GC:** Minimizes pause times by processing Old Generation in regions.
-- **Lazy RC & CC:** Reduces GC overhead by deferring checks and collecting cycles incrementally.
-- **Memory Movement:** Handled via handle tables to avoid scanning all references.
-- **Large Object Handling:** Allocated in segregated OG regions to prevent frequent copying.
-- **Impact on Performance:**
-  - Thread-local allocations minimize synchronization overhead.
-  - Incremental and lazy approaches minimize long GC pauses.
-  - Compacting OG ensures low fragmentation and maintains spatial locality.
+The heap regions (such as Young Generation) are subdivided into smaller units called **cards**. For example, if YG T1 occupies 1MB, it is split into cards of 4KB each. This fine-grained division makes memory scanning more efficient and easier to manage.
 
-##### GC Behaviour
+Each card tracks references using the **Remembered Set (RS)**. 
+When an object O is referenced from other objects, the RS records which cards contain those references:
 
-###### Life Cycle
+- **Object O → Card A, B, C**
 
-The **Garbage Collector (GC)** in Celeris manages memory by automatically allocating, promoting, and reclaiming objects. Its main goal is to efficiently handle short-lived and long-lived objects, minimizing pauses and maximizing throughput.
+This means Object O is referenced by objects located in Card A, Card B, and Card C. This way, instead of scanning the entire heap, the GC only needs to scan the relevant cards (in this example, just 12KB), greatly improving efficiency during collection and reference updates.
 
-##### Memory Regions
+### Why to use this
 
-Memory is divided into **two main regions**:
+Celeris benefits greatly from this memory management architecture due to its compact and highly dynamic Young Generation (YG). Rapid relocation of objects—whether moving them from YG to Old Generation (OG) or reorganizing YG under space pressure—is essential for optimal performance.
 
-###### 1. Young Generation (YG)
+#### Cards Layout Efficiency
 
-* Contains objects that are newly created and are expected to have a short lifespan
-* Collected frequently with fast, efficient algorithms (e.g., *minor GC*)
-* Designed to be small and thread-local for fast allocation
-* **Uses Reference Counting (RC) only**  
-  > Any object forming a cycle in YG will survive more than 3 GC cycles, so it will be promoted to OG where cycles are collected.
+- **Minimal Overhead:** Each object incurs only 8 bytes for metadata, plus 8 bytes for each card it references.
+- **Reference Tracking:** Instead of tracking every individual reference (which previously required 8 bytes per reference), references are now tracked at the card level. This dramatically reduces memory overhead.
+- **GC Acceleration:** Card-level tracking enables the garbage collector to scan only relevant memory regions, speeding up collection cycles and reducing pause times.
 
-###### 2. Old Generation (OG)
+#### Practical Impact
 
-* Holds objects that survived multiple Young Generation collections
-* Collected less frequently, usually with a more expensive *major GC*
-* Can grow backward using a **bidirectional bump pointer**, absorbing extra Free Space dynamically
-* **Memory requests are handled by the compiler**, which always requests additional heap memory **before OG** to avoid moving OG and maintain contiguity
-* If, for any reason, the system provides memory at the end instead of before OG, the GC still handles it according to the standard plan with minimal impact
-* **Uses Reference Counting (RC) + Cycle Collector (CC)** for handling both simple references and circular references
+This design ensures that memory operations—especially those involving frequent object movement—are fast and efficient. The Cards Layout is particularly well-suited for Celeris, where the volatility and limited size of YG demand a highly responsive and low-overhead GC strategy.
+
+#### Allocation Strategy
+
+- **Small Objects:** Allocated in YG using bump pointer allocation
+- **Large Objects (>256 KB):** Direct allocation in OG
+- **Static/Global Objects:** Immediate allocation in OG
+- **Thread Locality:** Each thread maintains its own YG for reduced contention
+
+#### Promotion Rules
+
+| Condition | Action | Threshold |
+|-----------|--------|-----------|
+| **Survival Count** | YG → OG promotion | 8 Minor GC cycles |
+| **Large Objects** | Fast promotion | 3 Minor GC cycles (>256 KB) |
+| **Very Large/Static** | Immediate promotion (>512KB) | On allocation |
+| **YG Pressure** | Premature promotion | When YG is full |
+| **Cyclic References** | Deferred to OG | CC runs in OG only |
+
+#### Reference Counting
+
+- **Young Generation:** Immediate reference counting
+- **Old Generation:** Lazy reference counting for performance
+
+#### Cycle Collection
+
+- **Incremental cycle collector** runs in OG only
+- Detects and cleans unreachable reference cycles
+- YG cycles are deferred until promotion to OG
+
+#### Memory Compaction
+
+- **Incremental compaction** in OG reduces pauses and fragmentation
+- **Cache optimization** through thread-local allocation patterns
 
 ---
 
-###### Local-Thread Dynamic Young Generations
+### 5.1.2 GC Life Cycle
 
-**1. Initial Assignment**
+#### System Impact Optimization
 
-Each Thread starts with **\~256 KB to 1 MB**, depending on software requirements. The total Young Generation space is about `30%` of the initial heap.
+| Feature | Benefit |
+|---------|---------|
+| **Thread-local YG** | Reduced lock contention, improved cache locality |
+| **Shared OG** | Controlled access via region locks and write barriers |
+| **Incremental GC** | Minimized pause times through region-based processing |
+| **Lazy RC & CC** | Reduced overhead by deferring expensive checks |
+| **Smart Memory Movement** | Card-based tracking avoids full reference scanning |
+| **Large Object Handling** | Direct OG allocation prevents frequent copying |
 
-**Memory Map (initial)**
+#### GC Life Cycle Phases
 
-```
-[ YG T1 ][ Slack 1 ][ YG T2 ][ Slack 2 ][ Free Space ][ OG ]
-```
-
-Where:
-
-* **OG** = Old Generation
-* **YG Tx** = Young Generation Thread X
-
-**2. Dynamic Increase**
-
-Celeris reserves a `[ Slack ]` after each Young Generation so that a thread can extend its memory if it uses all its space.
-
-```
-[ YG T1 ][ Slack 1 ][ YG T2 ][ Slack 2 ][ Free Space ][ OG ]
-```
-
-**3. Maximum Space Reached**
-
-When a Young Generation reaches its memory pool `[YG T1 + Slack 1]`:
-
-* Memory is copied to Free Space if contiguous space is not available
-* If there is Free Space directly after the YG, no copy is needed; a new Slack is allocated there
-
-**Example State:**
-
-```
-[ YG T1 ][ Free Space ][ OG ]
+```mermaid
+graph TD
+    A[Memory Allocation] --> B{Object Size?}
+    B -->|Small/Medium| C[Young Generation]
+    B -->|Large/Static| D[Old Generation]
+    C --> E[Minor GC]
+    E --> F{Survived 5 cycles?}
+    F -->|Yes| G[Promote to OG]
+    F -->|No| H[Collect/Keep in YG]
+    G --> I[Major GC]
+    D --> I
+    I --> J[Lazy RC + Cycle Collection]
+    J --> K[Incremental Compaction]
 ```
 
-**After Expansion:**
+#### Memory Regions Detail
+
+##### Young Generation (YG)
+
+The **Young Generation (YG)** is a thread-local memory region dedicated to the allocation of new and short-lived objects. Each thread in the program maintains its own YG, which minimizes contention and maximizes cache locality. YG is compact, typically ranging from 512 KB to 1 MB, and is optimized for rapid allocation and deallocation using bump pointer techniques.
+
+Objects allocated in YG are expected to have high turnover; most are collected quickly during frequent Minor GC cycles. Only objects that survive multiple GC cycles, exceed certain size thresholds, or meet promotion criteria are moved to the Old Generation (OG) for longer lifetimes. Reference counting in YG is immediate and thread-local, enabling fast updates without synchronization overhead.
+Memory scanning and collection in YG are accelerated by dividing the region into small cards (e.g., 4 KB each), with references tracked at the card level via the Remembered Set (RS). This allows the garbage collector to efficiently identify and process only the relevant portions of memory, reducing pause times and improving overall performance.
+
+The design of YG ensures that allocation, collection, and promotion are highly efficient, making it ideal for managing the volatile, short-lived objects typical in dynamic applications. Its thread-local nature and card-based tracking contribute to low-latency memory operations and scalable multi-threaded execution.
+Access to OG is synchronized via region locks and write barriers, ensuring thread safety during concurrent operations. The architecture of OG supports efficient memory management for large-scale, multi-threaded applications, balancing throughput and pause times while maintaining data integrity across the program’s lifetime.
+
+##### Old Generation (OG)
+
+The **Old Generation (OG)** is a shared memory region designed for long-lived objects and large allocations. Unlike the thread-local Young Generation (YG), OG is accessible by all threads and grows dynamically to accommodate persistent data. Objects promoted from YG—typically those that survive multiple Minor GC cycles, exceed certain size thresholds, or are statically allocated—are stored in OG for extended lifetimes.
+
+OG employs bidirectional bump pointer allocation and incremental compaction to manage fragmentation and optimize memory layout. Reference counting in OG is performed lazily, batching updates to reduce overhead and improve performance for stable objects. Cycle collection is handled exclusively in OG, using incremental mark-and-sweep algorithms to detect and reclaim unreachable reference cycles.
+
+Access to OG is synchronized via region locks and write barriers, ensuring thread safety during concurrent operations. The architecture of OG supports efficient memory management for large-scale, multi-threaded applications, balancing throughput and pause times while maintaining data integrity across the program’s lifetime.
+##### Remembered Set (RS)
+
+The **Remembered Set (RS)** is a specialized structure that operates outside the program's heap, meaning it is not affected by garbage collection (GC) cycles, nor by the logical address or order of heap regions. Unlike the Young Generation (YG) and Old Generation (OG), RS is maintained in separate memory, ensuring its integrity and accessibility regardless of heap changes.
+
+RS works in tandem with cards to efficiently track references between objects, optimize promotion decisions, and update references when objects are relocated. Its primary function is to record, for each object, the set of cards (memory regions) where references to that object exist.
+
+The RS is implemented as a memory-resident list with the following structure:
 
 ```
-[ YG T1 ][ New Slack 1 ][ Free Space ][ OG ]
+Object → List<Cards>
 ```
 
-> This reduces unnecessary copying when memory is already contiguous.
+This means that for any given object, you can quickly retrieve all the cards that contain references to it. This mapping is essential for:
 
-**4. Heap Bump Pointer**
+- **Promotion Optimization:** Determining when an object should be promoted based on cross-generational references.
+- **Reference Updates:** Efficiently updating all references if an object is moved during GC or compaction.
+- **Reference Counting (RC):** Accurately maintaining reference counts by knowing all referencing locations.
 
-* Points to the next free memory location within a YG for fast allocation
-* When it reaches the end of YG, it uses the thread's Slack
-* If Slack is exhausted, memory is relocated or Free Space is expanded
+By decoupling RS from the heap and leveraging card-based tracking, Celeris achieves fast, scalable memory management with minimal overhead and high GC efficiency.
 
-**5. Heap Bump Pointer on Free Memory**
+> **Note:** The RS must be periodically compacted and cleaned to remove references to objects that have already been freed. This maintenance ensures that the RS does not retain stale references, keeping memory usage efficient and preventing unnecessary reference tracking.
 
-* When memory is released, bump pointers are not immediately updated
-* They are adjusted during the **Relocate Memory** process to point to the last allocated memory after relocation
+```
+┌─────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
+│   Thread-local YG   │    │    Remembered Set    │    │    Shared OG        │
+│                     │    │   (External Heap)    │    │                     │
+│ ┌─────────────────┐ │    │ Object → List<Cards> │    │ ┌─────────────────┐ │
+│ │ Card 1 (4KB)    │ │◄──►│                      │◄──►│ │ Region Locks    │ │
+│ │ Card 2 (4KB)    │ │    │ ┌─────────────────┐  │    │ │ Write Barriers  │ │
+│ │ Card N (4KB)    │ │    │ │ Ref Tracking    │  │    │ │ Bidirectional   │ │
+│ └─────────────────┘ │    │ │ Promotion Logic │  │    │ │ Bump Pointers   │ │
+│                     │    │ │ Update Batching │  │    │ └─────────────────┘ │
+│ Immediate RC        │    │ └─────────────────┘  │    │ Lazy RC + CC        │
+│ No Synchronization  │    │                      │    │ Incremental Compact │
+└─────────────────────┘    └──────────────────────┘    └─────────────────────┘
+```
 
 ---
 
-###### Global-Thread Bidirectional Old Generation
+### 5.1.3 Object Promotion System
 
-**1. Initial Assignment**
+The promotion system efficiently moves objects from Young Generation to Old Generation based on multiple criteria.
 
-* OG starts at the end of the heap and grows **backward** using a backward bump pointer
-* Initially sized to accommodate expected long-lived objects
-* **All memory requests for expansion are made by the compiler before OG** to maintain contiguity and avoid moving OG
+#### Promotion Criteria
 
-**2. Dynamic Increase**
+##### 1. Age-Based Promotion
+- **Standard Threshold:** 8 consecutive Minor GC survival cycles
+- **Rationale:** Distinguishes short-lived from persistent objects
+- **Optimization:** Reduces unnecessary copying of temporary objects
 
-* If the system assigns more heap memory, the **extra Free Space** can be absorbed incrementally by OG
-* Bump pointer moves backward to include Free Space extra without moving existing OG objects immediately when memory is relocated
-* If memory is assigned at the end instead of before OG, the GC continues using the existing plan with minimal impact
+##### 2. Size-Based Promotion
+| Object Size | Promotion Rule |
+|-------------|----------------|
+| **256 KB - 512 KB** | Promote after 3 Minor GC cycles |
+| **> 512 KB** | Immediate promotion (bypass YG) |
+| **Rationale** | Large objects are expensive to copy repeatedly |
 
-**Example of memory being assigned at the end of the heap**
+##### 3. Static/Global Objects
+- **Immediate promotion** upon allocation
+- **Lifetime:** Persist for entire program execution
+- **Optimization:** Bypass YG entirely for known long-lived objects
 
-*Example State Before Absorption:*
-
+##### 4. Heap Pressure Management
 ```
-[ YG1 ][ YG2 ][ Free Space ][ OG ← backward bump pointer ][ Free Space extra ]
-```
-
-*After Absorption of Free Space Extra:*
-
-```
-[ YG1 ][ YG2 ][ Free Space ][ OG + Free Space extra ← backward bump pointer ]
-```
-
-**3. Incremental Relocation**
-
-OG data can be **moved gradually** toward the new end of OG for contiguity:
-
-**Before:**
-
-```
-[ YG1 ][ YG2 ][ Free Space ][ ########### OOOOOOOOOO ]
+When YG reaches 80-90% capacity:
+├── Identify top 10% objects by reference count
+├── Promote objects aged 4-5 cycles
+├── Set flag: PresurePromoted = true
+└── Prevent allocation failures proactively
 ```
 
-**After:**
+##### 5. Cross-Generation References
+- **Trigger:** >40% of references from OG, or ≥3 OG references
+- **Tracking:** Atomic reference count updates in object headers
+- **Benefit:** Reduces copying overhead for OG-referenced objects
 
-```
-[ YG1 ][ YG2 ][ Free Space ][ OOOOOOOOOO ← backward bump pointer ########### ]
-```
+#### Promotion Process Pipeline
 
-Legend:
-
-* `O` = New Empty memory
-* `#` = Old Space memory
-
-> Minimizes pause times by avoiding a full OG copy.
-
-**4. Free Space Release**
-
-If the old OG space becomes larger than a threshold (e.g., 50% of heap), it is released:
-
-```
-[ YG1 ][ YG2 ][ Free Space + Previous OG ][ OOOOOO ########### ]
-```
-
-This ensures efficient reuse of memory while keeping OG contiguous.
-
-**5. Heap Bump Pointer**
-
-* Indicates the current end of OG (backward)
-* Adjusted as OG absorbs Free Space extra or relocates objects
-* Never allows new YG allocations **behind OG**
-
-**6. Heap Bump Pointer on Free Memory**
-
-* When OG memory is no longer used, bump pointer is updated during the **Relocate Memory** process to point to the last allocated memory of OG
-
-###### Behaviour
-
-1. **Memory Dictionary Allocation Phase:**  
-   - Each thread requests an initial **Young Generation (YG)** region (256 KB–1 MB).  
-   - The compiler also reserves the **Old Generation (OG)** at the end of the heap with a backward bump pointer.  
-   - `[ Slack ]` areas are created after each YG for dynamic expansion.  
-   - Memory metadata (dictionary) is initialized with reference counters, region boundaries, and handle tables.
-
-2. **Memory Allocation Phase:**  
-   - Small/short-lived objects are allocated in the thread-local YG using a **bump pointer**.  
-   - Large objects (>256 KB) are allocated faster in the Old Generation.  
-   - The compiler ensures static/global objects are always allocated in OG.  
-   - Bump pointers advance linearly; if space is exhausted, Slack is used or Free Space is claimed.
-
-3. **Minor Collection (Young GC):**  
-   - Runs frequently and very fast.  
-   - Uses **Reference Counting (RC) only** to reclaim memory.  
-   - Objects forming cycles remain in YG until promotion.  
-   - Thread-local: no synchronization overhead.
-
-4. **Promotion:**  
-   - Objects that survive **3 YG collections** are promoted to OG.  
-   - Large objects and globals may be promoted after **1 cycle**.  
-   - Promotion copies objects into OG and updates handle tables.
-
-5. **Major Collection (Old GC):**  
-   - Runs less frequently than Minor GC.  
-   - Uses **lazy RC** (checked depending on lowest reference count) to minimize overhead.  
-   - Performs **incremental compaction** to reclaim free memory and improve spatial locality.  
-   - Region-based locking ensures multi-thread safety.
-
-6. **Cycle Collection:**  
-   - **Cycle Collector (CC) runs only in OG** to detect and remove unreachable cycles.  
-   - YG does not perform CC; cycles there survive promotion.  
-   - Incremental and concurrent where possible, minimizing pauses.
-
-7. **Increase Memory Heap:**  
-   - YG consumes its `[ Slack ]` or extends dynamically if needed.  
-   - OG absorbs Free Space dynamically via backward bump pointer.  
-   - Extra memory assigned after OG is integrated incrementally.  
-   - Prevents frequent full copies and maintains contiguous growth.
-
-8. **Finalization:**  
-   - Destructors/finalizers run safely upon object collection.  
-   - Handle tables updated to remove dangling references.  
-   - Freed memory returned to Free Space for reuse by YG or OG.  
-   - Thread-local caches retain small blocks to speed reallocation.  
-   - Ensures system-wide heap balance, minimizing fragmentation and maximizing throughput.
+1. **Candidate Selection** - Identify objects meeting promotion criteria
+2. **Promotion Preparation** - Prepare target OG space and metadata
+3. **Data Movement** - Copy object data with integrity checks
+4. **Reference Updates** - Update all external references atomically
+5. **Post-Promotion** - Cleanup YG space and update GC metadata
 
 ---
 
-#### Promotion
-
-##### 1. Promotion Criteria
-
-1. **Age**:
-2. **Size**:
-3. **OG References**:
-4. 
-
-##### 2. Promotion Process
-
-##### 3. Promotion Concurrency Safety
-
-##### 4. Copy Strategy
-
-1. Reference Copy
-
-##### 5. Integrity
-
-##### 6. Performance Considerations
-
-##### 7. Memory Space Fallbacks
-
+### 5.1.4 Reference Counting Systems
 
 ---
 
-#### Integrity
+### 5.1.5 Cycle Collection
 
 ---
 
-##### Reference Counting
-
-###### Fast Reference Counting
-
-###### Lazy Reference Counting
-
-###### Behaviour
+## 5.2 Manual Memory Management
 
 ---
 
-##### Cycle Collector
-
-###### Cycle References between YG/OG
----
-
-##### Relocate Memory
-
-###### Incremental Relocation
-
-###### Concurrent Relocation
-
-###### Behaviour
-
+## 5.3 Pointers & References
 
 ---
 
-##### Range Segregation
+## 5.4 Memory Safety
 
 ---
 
-##### Multi-Thread Heap 
+## 5.5 Performance Optimization
 
 ---
 
-##### Caching
+## 5.6 Advanced Features
 
 ---
 
-##### Extreme Situations
+## 5.7 Reference Updates During Relocation
 
-###### Heap Overflow
+When objects are relocated during garbage collection, all references pointing to them must be updated to ensure memory consistency.  
+Celeris employs **Write Barriers** to automatically track and update references without requiring manual intervention.
 
-###### Memory Fragmentation
+### 5.7.1 Write Barriers
+- A **Write Barrier** is a lightweight runtime check triggered whenever a pointer field in an object is modified.  
+- On each pointer update:
+  1. The source object is identified.
+  2. The new reference is captured.
+  3. The corresponding **Card** is marked as dirty.
+  4. The **Remembered Set (RS)** is updated to reflect the change.
 
-###### Massive Promotion YG to OG.
+This guarantees that references (e.g., OG → YG) are always registered and updated without rescanning the entire heap.
 
+### 5.7.2 Integration with Remembered Sets
+- Instead of storing every individual reference, the RS keeps mappings from objects to **Cards** (4KB memory regions).  
+- This reduces memory overhead significantly, since multiple references often cluster within the same card.  
+- During relocation, only the cards listed in the RS need to be rescanned and updated, minimizing GC pause times.
 
-### 5.2 Manual Memory Management
+### 5.7.3 Advantages
+- **Automatic tracking** of references during program execution.
+- **Reduced memory cost** compared to alias-based approaches.
+- **Faster relocation** by limiting scanning to dirty cards instead of the full heap.
+- **Safety**: prevents dangling references by ensuring RS is always consistent.
 
-#### 5.2.1 Allocate / Delete (heap management)
+### 5.7.4 Limitations to Fix
+- Slight overhead on each pointer assignment due to the Write Barrier.  
+- Increased complexity in runtime implementation.  
+- Non-Updated References if WriteBarrier fails (Make WB as mandatory event)
 
-#### 5.2.2 Scope-based resource management allocation
+---
 
-#### 5.2.3 Ownership & responsabilidades
+## 5.8 Memory Header Structure
 
-#### 5.2.4 Avoiding double free & dangling pointers
+Every object in Celeris includes a metadata header for efficient memory management:
 
-#### 5.2.5 Memory pools & object reuse
+### Header Layout
 
-### 5.3 Punteros (Pointers)
+| Field | Size | Description |
+|-------|------|-------------|
+| `vtablePointer` | 8 B | Method/class dispatch table |
+| `allocationSize` | 4 B | Total object size in bytes |
+| `flags` | 1 B | Generation + control flags |
+| `padding` | 1 B | 8-byte alignment |
+| `referenceCount` | 2 B | Active reference counter |
+| `threadOwner` | 4 B | Owning thread identifier |
+| **Cross-gen refs** | External | Separate RS structure (~8B avg) |
 
-#### 5.3.1 Declaration & unreference (* y &)
+**Total Header Size:** ~20 bytes (excluding RS)
 
-#### 5.3.2 Null pointers & runtime errors
+### Flag Bits Configuration
 
-#### 5.3.3 Const pointers & punteros read-only
+| Bits | Field | Values | Description |
+|------|-------|--------|-------------|
+| **7-6** | Generation | `00` YG, `01` OG, `10` Slack, `11` Reserved | Memory region identifier |
+| **5** | Pinned | `0` Movable, `1` Non-movable | Prevents relocation during GC |
+| **4** | Immutable | `0` Mutable, `1` Immutable | Enables read/write optimizations |
+| **3** | CC Candidate | `0` No cycles, `1` Cycle candidate | Marks for cycle collection |
+| **2** | Marked | `0` Unvisited, `1` Visited | GC traversal state |
+| **1-0** | Reserved | `00` | Future feature expansion |
 
-#### 5.3.4 Pointers and functions (Reference parameters)
+### Cross-Generation References (RS)
 
-#### 5.3.5 Difference between pointers and safe references (ref)
-
-#### 5.3.6 Pointer arithmetic
-
-### 5.4 Memory Safety
-
-#### 5.4.1 Dangling pointers & safe usage
-
-#### 5.4.2 Bounds checking on arrays / slices
-
-#### 5.4.3 Immutable vs mutable objects
-
-#### 5.4.4 Thread-safe memory access
-
-### 5.5 Performance Considerations
-
-#### 5.5.1 Minimize GC pauses
-
-#### 5.5.2 Avoid memory fragmentation
-
-#### 5.5.3 Optimization for threads and concurrency
-
-#### 5.5.4 Memory pooling & caching
-
-### 5.6 Advanced Features
-
-#### 5.6.1 Smart pointers / RAII wrappers
-
-#### 5.6.2 Weak references for temporary objects
-
-#### 5.6.3 Finalizers / destructors
-
-### 5.7 Hanle Table
-### 5.7 Handle Table
-
-The Handle Table is a mechanism for managing pointer updates when objects are relocated in memory, especially in the Old Generation (OG) during garbage collection or compaction.
-
-#### Motivation
-
-When an object is moved in memory (e.g., during GC compaction), all pointers referencing its old address must be updated. Directly updating every reference is costly and error-prone.
-
-#### Solution: Handle Table
-
-Each OG object is assigned a fixed handle in memory:
-
-```
-Handle[O] → O
-```
-
-All references point to the handle, not directly to the object. If the object is moved (O → O'), only the handle is updated:
-
-```
-Handle[O] → O'
-```
-
-This ensures all references automatically point to the new location without needing to update each reference individually.
-
-> **Important:** The Handle Table itself must remain 100% fixed in memory. If the Handle Table is moved, references will not know where to check for the updated object location, breaking memory safety.
-
-#### Benefits
-
-- Efficient pointer updates on object relocation.
-- Simplifies memory management and compaction.
-- Reduces risk of dangling pointers.
-
-#### Usage
-
-- Handles are allocated per OG object.
-- All references (variables, fields, collections) use the handle as the indirection layer.
-- On object move, update the handle mapping only.
-- The Handle Table must never be relocated; its address is constant throughout program execution.
-
-> **Note:** The Handle Table is essential for safe and efficient memory management in environments with object relocation, such as generational garbage collectors.
-
-#### Example: Handle Table Usage in Celeris
-
-Suppose you have an object in the Old Generation and several variables referencing it:
-
-```go
-class UserProfile {
-    var name : SliceChar
-    var age : Int
-}
-
-var userHandle = HandleTable.allocate(UserProfile("Alice", 30))
-var ref1 = userHandle
-var ref2 = userHandle
-```
-
-If the GC compacts memory and moves the `UserProfile` object, only the handle is updated:
-
-```go
-HandleTable.update(userHandle, newLocation)
-```
-
-All references (`ref1`, `ref2`) automatically point to the new location via the handle, ensuring safe access and preventing dangling pointers.
-
-> **Note:** Direct access to the object should always go through its handle for memory safety.
-
-### 5.8 Memory Header
-
-The memory header in Celeris is a metadata block prepended to every object in memory. It provides essential information for garbage collection, reference counting, concurrency, and debugging. The header layout includes:
-
-| Field                | Description                                                                 |
-|----------------------|-----------------------------------------------------------------------------|
-| VTable Pointer       | Pointer to the method table or class descriptor (Klass Pointer)              |
-| Allocation Size      | Total size of the object for copying or moving                              |
-| Generation ID        | Indicates Young Generation or Old Generation                                |
-| Age                  | Number of GC cycles survived                                                |
-| Pinned Flag          | Marks if the object should be considered by GC (used for Handle Table/IO)   |
-| Handle Table Pointer | Pointer to the object's entry in the Handle Table                           |
-| Reference Counter    | Active reference count for the object                                       |
-| IdleCycles           | Number of GC cycles with unchanged reference count (for Cycle Collector)    |
-| CC Flag              | Marks object as candidate for cycle analysis                                |
-| Thread Owner         | Thread ID that owns modification rights; empty if not locked                |
-| Object ID            | Unique identifier for the object                                            |
-| Immutable Flag       | Indicates if the object is immutable (optimization hint)                    |
-
-This header is automatically managed by the runtime and compiler, ensuring efficient memory management, safe concurrency, and robust debugging.
+- **External storage** to minimize header size
+- **One entry per object** with cross-generational references  
+- **Average overhead:** ~8 bytes per participating object
+- **Automatic management** by runtime and compiler
 
 ---
 

@@ -208,7 +208,7 @@ var c : Int<64> = 5 // 5 Integer of 64 bits
 
 ### 2.8 Escape Sequences
 
-String and character literals support escape sequences such as `\n` (newline), `\t` (tab), `\\` (backslash), `\'` (single quote), and `\"` (double quote).
+String and character literals support escape sequences such as `\n` (newline), `\t` (tab), `\\` (backslash), `\'` (single quote), and `\"` (double quote) `\$` ($).
 
 ---
 
@@ -447,6 +447,27 @@ The operator checks if the left-hand side is `null`; if so, it returns the right
 
 > **Note:** The null coalescing operator simplifies code by reducing explicit null checks and providing fallback values in a single expression.
 
+#### 3.5.5 Null Coalescing Assignment Operator
+
+Celeris also supports the null coalescing assignment operator ??=. This operator assigns the right-hand side value to the variable only if the variable is currently null.
+
+**Sintax:**
+
+```go
+userName ??= "Guest"
+```
+
+This is equivalent to:
+
+```go
+if (userName == null) {
+    userName = "Guest"
+}
+```
+
+> **Note:** The `??=` operator simplifies code by combining a null check and assignment into a single concise expression.
+
+
 ---
 
 ## 4. Language Usage
@@ -508,6 +529,12 @@ Celeris supports multiple assignment, allowing you to assign values to several v
 ```go
 var a, b, c = 1, 2, 3
 // a = 1, b = 2, c = 3
+```
+
+Or
+
+```go
+var a = 1, b = 2, c = 3
 ```
 
 This feature is useful when unpacking values from functions that return multiple results:
@@ -1327,10 +1354,12 @@ Celeris uses a hybrid generational GC designed for multi-threaded environments, 
 - **Allocation:**
   - Objects are allocated in the Young Space using a bump pointer.
   - Large objects (>256 KB) are allocated faster in the Old Generation.
-- **Promotion:**
-  - Objects survive **3 Young GC cycles** before promotion to the Old Generation.
-  - Large objects survive **1 Young GC Cycle** before promotion to the Old Generation. 
+- **Incremental Promotion:**
+  - Objects survive **4 Young GC cycles** before promotion to the Old Generation.
+  - Large objects survive **2 Young GC Cycle** before promotion to the Old Generation. 
   - Static or global objects are promoted immediately.
+
+  - 
 - **Reference Counting:**
   - Young Space uses immediate RC.
   - Old Generation uses Lazy RC.
@@ -1694,6 +1723,93 @@ This ensures efficient reuse of memory while keeping OG contiguous.
 
 #### 5.6.3 Finalizers / destructors
 
+### 5.7 Hanle Table
+### 5.7 Handle Table
+
+The Handle Table is a mechanism for managing pointer updates when objects are relocated in memory, especially in the Old Generation (OG) during garbage collection or compaction.
+
+#### Motivation
+
+When an object is moved in memory (e.g., during GC compaction), all pointers referencing its old address must be updated. Directly updating every reference is costly and error-prone.
+
+#### Solution: Handle Table
+
+Each OG object is assigned a fixed handle in memory:
+
+```
+Handle[O] → O
+```
+
+All references point to the handle, not directly to the object. If the object is moved (O → O'), only the handle is updated:
+
+```
+Handle[O] → O'
+```
+
+This ensures all references automatically point to the new location without needing to update each reference individually.
+
+> **Important:** The Handle Table itself must remain 100% fixed in memory. If the Handle Table is moved, references will not know where to check for the updated object location, breaking memory safety.
+
+#### Benefits
+
+- Efficient pointer updates on object relocation.
+- Simplifies memory management and compaction.
+- Reduces risk of dangling pointers.
+
+#### Usage
+
+- Handles are allocated per OG object.
+- All references (variables, fields, collections) use the handle as the indirection layer.
+- On object move, update the handle mapping only.
+- The Handle Table must never be relocated; its address is constant throughout program execution.
+
+> **Note:** The Handle Table is essential for safe and efficient memory management in environments with object relocation, such as generational garbage collectors.
+
+#### Example: Handle Table Usage in Celeris
+
+Suppose you have an object in the Old Generation and several variables referencing it:
+
+```go
+class UserProfile {
+    var name : SliceChar
+    var age : Int
+}
+
+var userHandle = HandleTable.allocate(UserProfile("Alice", 30))
+var ref1 = userHandle
+var ref2 = userHandle
+```
+
+If the GC compacts memory and moves the `UserProfile` object, only the handle is updated:
+
+```go
+HandleTable.update(userHandle, newLocation)
+```
+
+All references (`ref1`, `ref2`) automatically point to the new location via the handle, ensuring safe access and preventing dangling pointers.
+
+> **Note:** Direct access to the object should always go through its handle for memory safety.
+
+### 5.8 Memory Header
+
+The memory header in Celeris is a metadata block prepended to every object in memory. It provides essential information for garbage collection, reference counting, concurrency, and debugging. The header layout includes:
+
+| Field                | Description                                                                 |
+|----------------------|-----------------------------------------------------------------------------|
+| VTable Pointer       | Pointer to the method table or class descriptor (Klass Pointer)              |
+| Allocation Size      | Total size of the object for copying or moving                              |
+| Generation ID        | Indicates Young Generation or Old Generation                                |
+| Age                  | Number of GC cycles survived                                                |
+| Pinned Flag          | Marks if the object should be considered by GC (used for Handle Table/IO)   |
+| Handle Table Pointer | Pointer to the object's entry in the Handle Table                           |
+| Reference Counter    | Active reference count for the object                                       |
+| IdleCycles           | Number of GC cycles with unchanged reference count (for Cycle Collector)    |
+| CC Flag              | Marks object as candidate for cycle analysis                                |
+| Thread Owner         | Thread ID that owns modification rights; empty if not locked                |
+| Object ID            | Unique identifier for the object                                            |
+| Immutable Flag       | Indicates if the object is immutable (optimization hint)                    |
+
+This header is automatically managed by the runtime and compiler, ensuring efficient memory management, safe concurrency, and robust debugging.
 
 ---
 

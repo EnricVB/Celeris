@@ -451,7 +451,7 @@ The operator checks if the left-hand side is `null`; if so, it returns the right
 
 ## 4. Language Usage
 
-### 4.1 Variables
+### 4.1 Variables / Properties
 
 Variables in Celeris are declared using the `var` keyword, followed by the variable name and an optional type annotation.
 
@@ -461,8 +461,8 @@ Variables in Celeris are declared using the `var` keyword, followed by the varia
 [internal] [visibility] var <variableName> : <Type?>
 ```
 
-- `[internal]`: Optional. Limits function access to the same program. You can only use this on class-scope variables, not method-scope. 
-- `[visibility]`: Optional. Can be `private`, `protected`, or `public` (defaults to `private`). You can only use this on class-scope variables, not method-scope. 
+- `[internal]`: Optional. Limits function access to the same program. You can only use this on properties, not variables. 
+- `[visibility]`: Optional. Can be `private`, `protected`, or `public` (defaults to `public`). You can only use this on properties, not variables. 
 - `var` is the keyword for variable declaration
 - `variableName` is the identifier for the variable (must be unique in context)
 - `Type` is the data type of the variable (can be infered if initialized)
@@ -470,6 +470,7 @@ Variables in Celeris are declared using the `var` keyword, followed by the varia
 ##### Examples
 
 ```go
+
 var age : Int
 var name : SliceChar
 var isActive : Bool
@@ -607,7 +608,7 @@ abstract func calculateArea() : (Double)
 #### 4.3.2 Function Declaration Modifiers
 
 - `[internal]`: Optional. Limits function access to the same program.
-- `[visibility]`: Optional. Can be `private`, `protected`, or `public` (defaults to `private`).
+- `[visibility]`: Optional. Can be `private`, `protected`, or `public` (defaults to `public`).
 - `[abstract]`: Optional. Declares that this function can be accessed without initializing the class it belongs to.
 - `[static]`: Optional. Declares a class-level function.
 
@@ -1351,6 +1352,7 @@ Celeris uses a hybrid generational GC designed for multi-threaded environments, 
   - Thread-local allocations minimize synchronization overhead.
   - Incremental and lazy approaches minimize long GC pauses.
   - Compacting OG ensures low fragmentation and maintains spatial locality.
+
 ##### GC Behaviour
 
 ###### Life Cycle
@@ -1366,6 +1368,8 @@ Memory is divided into **two main regions**:
 * Contains objects that are newly created and are expected to have a short lifespan
 * Collected frequently with fast, efficient algorithms (e.g., *minor GC*)
 * Designed to be small and thread-local for fast allocation
+* **Uses Reference Counting (RC) only**  
+  > Any object forming a cycle in YG will survive more than 3 GC cycles, so it will be promoted to OG where cycles are collected.
 
 ###### 2. Old Generation (OG)
 
@@ -1374,8 +1378,7 @@ Memory is divided into **two main regions**:
 * Can grow backward using a **bidirectional bump pointer**, absorbing extra Free Space dynamically
 * **Memory requests are handled by the compiler**, which always requests additional heap memory **before OG** to avoid moving OG and maintain contiguity
 * If, for any reason, the system provides memory at the end instead of before OG, the GC still handles it according to the standard plan with minimal impact
-
-> **The GC Life Cycle** in Celeris is the process through which memory is managed across these regions, including allocation in the Young Generation, promotion to the Old Generation, and reclamation of unused memory.
+* **Uses Reference Counting (RC) + Cycle Collector (CC)** for handling both simple references and circular references
 
 ---
 
@@ -1511,20 +1514,82 @@ This ensures efficient reuse of memory while keeping OG contiguous.
 
 ###### Behaviour
 
-1. **Memory Dictionary Allocation Phase:**
+1. **Memory Dictionary Allocation Phase:**  
+   - Each thread requests an initial **Young Generation (YG)** region (256 KB–1 MB).  
+   - The compiler also reserves the **Old Generation (OG)** at the end of the heap with a backward bump pointer.  
+   - `[ Slack ]` areas are created after each YG for dynamic expansion.  
+   - Memory metadata (dictionary) is initialized with reference counters, region boundaries, and handle tables.
 
-2. **Memory Allocation Phase:**
+2. **Memory Allocation Phase:**  
+   - Small/short-lived objects are allocated in the thread-local YG using a **bump pointer**.  
+   - Large objects (>256 KB) are allocated faster in the Old Generation.  
+   - The compiler ensures static/global objects are always allocated in OG.  
+   - Bump pointers advance linearly; if space is exhausted, Slack is used or Free Space is claimed.
 
 3. **Minor Collection (Young GC):**  
+   - Runs frequently and very fast.  
+   - Uses **Reference Counting (RC) only** to reclaim memory.  
+   - Objects forming cycles remain in YG until promotion.  
+   - Thread-local: no synchronization overhead.
 
-4. **Promotion:**
+4. **Promotion:**  
+   - Objects that survive **3 YG collections** are promoted to OG.  
+   - Large objects and globals may be promoted after **1 cycle**.  
+   - Promotion copies objects into OG and updates handle tables.
 
 5. **Major Collection (Old GC):**  
+   - Runs less frequently than Minor GC.  
+   - Uses **lazy RC** (checked depending on lowest reference count) to minimize overhead.  
+   - Performs **incremental compaction** to reclaim free memory and improve spatial locality.  
+   - Region-based locking ensures multi-thread safety.
 
 6. **Cycle Collection:**  
+   - **Cycle Collector (CC) runs only in OG** to detect and remove unreachable cycles.  
+   - YG does not perform CC; cycles there survive promotion.  
+   - Incremental and concurrent where possible, minimizing pauses.
 
-7. **Finalization:**  
+7. **Increase Memory Heap:**  
+   - YG consumes its `[ Slack ]` or extends dynamically if needed.  
+   - OG absorbs Free Space dynamically via backward bump pointer.  
+   - Extra memory assigned after OG is integrated incrementally.  
+   - Prevents frequent full copies and maintains contiguous growth.
 
+8. **Finalization:**  
+   - Destructors/finalizers run safely upon object collection.  
+   - Handle tables updated to remove dangling references.  
+   - Freed memory returned to Free Space for reuse by YG or OG.  
+   - Thread-local caches retain small blocks to speed reallocation.  
+   - Ensures system-wide heap balance, minimizing fragmentation and maximizing throughput.
+
+---
+
+#### Promotion
+
+##### 1. Promotion Criteria
+
+1. **Age**:
+2. **Size**:
+3. **OG References**:
+4. 
+
+##### 2. Promotion Process
+
+##### 3. Promotion Concurrency Safety
+
+##### 4. Copy Strategy
+
+1. Reference Copy
+
+##### 5. Integrity
+
+##### 6. Performance Considerations
+
+##### 7. Memory Space Fallbacks
+
+
+---
+
+#### Integrity
 
 ---
 
@@ -1540,6 +1605,7 @@ This ensures efficient reuse of memory while keeping OG contiguous.
 
 ##### Cycle Collector
 
+###### Cycle References between YG/OG
 ---
 
 ##### Relocate Memory
@@ -1558,6 +1624,20 @@ This ensures efficient reuse of memory while keeping OG contiguous.
 ---
 
 ##### Multi-Thread Heap 
+
+---
+
+##### Caching
+
+---
+
+##### Extreme Situations
+
+###### Heap Overflow
+
+###### Memory Fragmentation
+
+###### Massive Promotion YG to OG.
 
 
 ### 5.2 Manual Memory Management

@@ -367,7 +367,7 @@ func swap<A, B>(a : A, b : B) : (B, A) {
 }
 ```
 
-### 3.5 Nullably Types
+### 3.5 Nullable Types
 
 Nullable types allow a variable to hold either a value of the specified type or `null`.
 
@@ -452,7 +452,7 @@ The operator checks if the left-hand side is `null`; if so, it returns the right
 
 Celeris also supports the null coalescing assignment operator ??=. This operator assigns the right-hand side value to the variable only if the variable is currently null.
 
-**Sintax:**
+**Syntax:**
 
 ```go
 userName ??= "Guest"
@@ -468,10 +468,35 @@ if (userName == null) {
 
 > **Note:** The `??=` operator simplifies code by combining a null check and assignment into a single concise expression.
 
+### 3.6 Type Casting
+
+#### 3.6.1 Explicit Casting
+
+Explicit type casting is often used when implicit casting is not possible. This typically occurs when converting between types where information may be lost. For example, casting from `Int<8>` to `Int<2>` results in the loss of 252 possible values, or casting from `Float` to `Int` discards the decimal part.
+
+Explicit casting is also required when converting objects between types, such as casting a `Pet` object to a `Dog` object.
+
+```go
+var smallInt : Int<8> = 100
+var largeInt : Int<32> = ((Int<32>) smallInt)    // Explicit cast
+
+var floatValue : Float = 3.75F
+var intValue : Int = ((Int) floatValue)          // Casts to Int, decimal part discarded
+
+// Object casting
+var pet : Pet = Dog()
+var dog : Dog = ((Dog) pet)                      // Casts Pet to Dog
+
+// If the cast is invalid, a runtime error is thrown.
+```
+
+#### 3.6.2 Implicit Casting
+
+Implicit type casting occurs automatically when there is no loss of information and the conversion is safe. For example, converting from `Int<2>` to `Int<32>` preserves all data, or converting from `Int` to `Float` simply adds precision without losing values. In these cases, no additional code is required, and implicit casting is commonly used in function parameters and assignments.
 
 ---
 
-## 4. Language Usage
+## 4. Variables and Constants
 
 ### 4.1 Variables / Properties
 
@@ -480,7 +505,7 @@ Variables in Celeris are declared using the `var` keyword, followed by the varia
 #### 4.1.1 Syntax
 
 ```go
-[internal] [visibility] var <variableName> : <Type?>
+[internal] [visibility] [escape] var <variableName> : <Type?>
 ```
 
 - `[internal]`: Optional. Limits function access to the same program. You can only use this on properties, not variables. 
@@ -601,11 +626,13 @@ class Config {
 }
 ```
 
-### 4.3 Functions
+---
+
+## 5. Functions
 
 Functions are declared using the `func` keyword:
 
-#### 4.3.1 Syntax
+### 5.1 Function Declaration Syntax
 
 ```go
 [internal] [visibility] [abstract] [static] func functionName(param1 : Type1, param2 : Type2, ...) : (ReturnType) {
@@ -633,21 +660,21 @@ func initialize() {
 abstract func calculateArea() : (Double)
 ```
 
-#### 4.3.2 Function Declaration Modifiers
+### 5.2 Function Declaration Modifiers
 
 - `[internal]`: Optional. Limits function access to the same program.
 - `[visibility]`: Optional. Can be `private`, `protected`, or `public` (defaults to `public`).
 - `[abstract]`: Optional. Declares that this function can be accessed without initializing the class it belongs to.
 - `[static]`: Optional. Declares a class-level function.
 
-#### 4.3.3 Function Declaration Components
+### 5.3 Function Declaration Components
 
 - **functionName**: Required. Must follow camelCase.
 - **Parameters**: Each parameter defined as `paramName : Type`, separated by commas.
 - **ReturnType**: Optional. Specify in parentheses after the colon. Use `void` or omit if no return value. You can have as many return values as wanted.
 - **Function Body**: Enclosed in curly braces `{}`.
 
-#### 4.3.4 Returning Values
+### 5.4 Returning Values
 
 To return values from a function, use the `return` keyword followed by the value(s) to be returned. If the function specifies multiple return types, separate the returned values with commas.
 
@@ -674,7 +701,7 @@ func logMessage(message : SliceChar) {
 }
 ```
 
-#### 4.3.5 Unreachable Code Detection
+### 5.5 Unreachable Code Detection
 
 If a function contains a mandatory `return` statement and unreachable code follows it, the compiler will allow compilation but will emit a warning indicating the presence of unreachable code. Unlike languages such as Golang, which treat unreachable code after a required return as a compilation error, Celeris permits it but highlights the issue to the developer during compilation.
 
@@ -687,8 +714,11 @@ func foo() : (Int) {
 
 > **Note:** While the code compiles, it is recommended to remove unreachable statements to maintain code clarity and avoid potential logic errors.
 
+---
 
-### 4.4 Expressions
+## 6. Expressions and Statements
+
+### 6.1 Expressions
 
 Expressions in Celeris are combinations of literals, variables, operators, and function calls that evaluate to a value.
 
@@ -701,7 +731,7 @@ var message = "Hello, " + name
 var result = calculateArea(width, height)
 ```
 
-#### 4.4.1 String Interpolation
+#### 6.1.1 String Interpolation
 
 SliceChar literals support string interpolation using `$variable` syntax:
 
@@ -709,11 +739,11 @@ SliceChar literals support string interpolation using `$variable` syntax:
 var greeting = "Hello, $userName!"
 ```
 
-#### 4.4.2 String Mutability
+#### 6.1.2 String Mutability
 
 `SliceChar` is a mutable string type with a fixed initial size that can be changed dynamically. This means its contents can be modified (characters replaced, appended, or removed), but its mutability is limited by the current allocated size. Expanding or shrinking requires resizing the underlying storage.
 
-#### 4.4.3 Function Calls
+#### 6.1.3 Function Calls
 
 Functions can be called within expressions:
 
@@ -721,7 +751,7 @@ Functions can be called within expressions:
 var area = getWidth() * getHeight()
 ```
 
-#### 4.4.4 Conditional Expressions
+#### 6.1.4 Conditional Expressions
 
 Celeris supports conditional (ternary-like) expressions:
 
@@ -729,7 +759,7 @@ Celeris supports conditional (ternary-like) expressions:
 var status = isActive ? "Active" : "Inactive"
 ```
 
-#### 4.4.5 Assignment Expressions
+#### 6.1.5 Assignment Expressions
 
 Assignment is also an expression and can be chained:
 
@@ -737,301 +767,11 @@ Assignment is also an expression and can be chained:
 var x = y = z = 0
 ```
 
-#### 4.4.6 Type Casting
-
-##### 4.4.6.1 Explicit Casting
-
-Explicit type casting is often used when implicit casting is not possible. This typically occurs when converting between types where information may be lost. For example, casting from `Int<8>` to `Int<2>` results in the loss of 252 possible values, or casting from `Float` to `Int` discards the decimal part.
-
-Explicit casting is also required when converting objects between types, such as casting a `Pet` object to a `Dog` object.
-
-```go
-var smallInt : Int<8> = 100
-var largeInt : Int<32> = ((Int<32>) smallInt)    // Explicit cast
-
-var floatValue : Float = 3.75F
-var intValue : Int = ((Int) floatValue)          // Casts to Int, decimal part discarded
-
-// Object casting
-var pet : Pet = Dog()
-var dog : Dog = ((Dog) pet)                      // Casts Pet to Dog
-
-// If the cast is invalid, a runtime error is thrown.
-```
-
-##### 4.4.6.2 Implicit Casting
-
-Implicit type casting occurs automatically when there is no loss of information and the conversion is safe. For example, converting from `Int<2>` to `Int<32>` preserves all data, or converting from `Int` to `Float` simply adds precision without losing values. In these cases, no additional code is required, and implicit casting is commonly used in function parameters and assignments.
-
-### 4.5 Classes, Interfaces and Enums
-
-#### 4.5.1 Classes
-
-Classes are user-defined types that encapsulate data and behavior.
-
-> **Warning:** A subclass can only inherit one single class or abstract class, and as many interfaces as desired.
-
-```go
-class UserProfile {
-    var name : SliceChar
-    var age : Int
-
-    func greet() {
-        // Implementation
-    }
-}
-```
-
-Classes can include inheritance by implementing other classes or interfaces. To inherit and implement a function from a superclass or interface, simply declare the function with the same name; there is no need to use an `override` keyword as in other languages.
-
-```go
-abstract class Pet {
-    var name : SliceChar
-    var age : Int
-
-    abstract func pet()
-}
-
-class Dog : Pet {
-    func pet() {
-        print("$name is happy!")
-    }
-}
-```
-
-#### 4.5.2 Class Declaration Syntax
-
-```go
-[internal] [visibility] [abstract] class ClassName {
-    // Member variables
-    var property : Type
-
-    // Member functions
-    func functionName(params) : (ReturnType) {
-        // Function body
-    }
-}
-```
-
-- `internal`: Optional modifier. When specified, the class is only accessible from within the same program after compilation. If the class is part of a library, it cannot be accessed externally, but it remains accessible within the program itself.
-
-- `visibility`: Can be either `private` or `public`. The default is `public` if not specified.
-
-- `abstract`: Optional modifier. When specified, the class will be considered an Abstract class.
-
-- Both `internal` and `visibility` are independent modifiers, so combinations like `internal public` or `internal private` are valid.
-
-#### 4.5.3 `this` and `super` Usage
-
-- `this` refers to the current instance of the class. Use `this` to access member variables and functions from within the class.
-
-    ```go
-    class Person {
-        var name : SliceChar
-
-        func printName() {
-            print(this.name) // Accesses the current instance's name
-        }
-    }
-    ```
-    
-    > Note: If you have multiple variables named `name` and use `print(name)` it will choose first the closest variable, so to use class variable `name` you must use `this.name`.
-
-- `super` is used in a subclass to access functions or constructors from its parent class. Use `super` to call the parent implementation or constructor.
-
-    ```go
-    class Animal {
-        func makeSound() {
-            print("Generic animal sound")
-        }
-    }
-
-    class Dog : Animal {
-        func makeSound() {
-            super.makeSound() // Calls Animal's makeSound
-            print("Woof!")
-        }
-    }
-    ```
-
-    You can also use `super` in constructors to initialize the parent class:
-
-    ```go
-    class Rectangle {
-        var width : Int
-        var height : Int
-
-        Rectangle(w : Int, h : Int) {
-            this.width = w
-            this.height = h
-        }
-    }
-
-    class Square : Rectangle {
-        Square(size : Int) {
-            super(size, size) // Calls Rectangle's constructor
-        }
-    }
-    ```
-
-> **Note:** Use `this` for accessing the current object's members, and `super` for accessing parent class members or constructors.
-
-#### 4.5.4 Abstract Classes
-
-Abstract classes are special classes that cannot be instantiated directly and may contain abstract functions (functions without implementation). They serve as base classes for other classes to inherit and implement the abstract functions. Abstract classes may also contain functions with implementations.
-
-```go
-abstract class Animal {
-    var name : SliceChar
-
-    abstract func makeSound()
-
-    func sleep() {
-        print("$name is sleeping.")
-    }
-}
-```
-
-A subclass must provide implementations for all abstract functions:
-
-```go
-class Cat : Animal {
-    func makeSound() {
-        // Implementation required
-    }
-}
-```
-
-#### 4.5.5 Inheritance
-
-A class can inherit from a single base class or abstract class and implement _multiple interfaces_:
-
-```go
-class Square : Rectangle, Drawable {            // Rectangle : Class | Drawable : Interface
-    func draw() {
-        print("Drawing square of size $width")
-    }
-}
-```
-
-#### 4.5.6 Constructors
-
-Classes can define constructors for initialization:
-
-```go
-class Point {
-    var x : Int
-    var y : Int
-
-    Point(x : Int, y : Int) {
-        this.x = x
-        this.y = y
-    }
-}
-```
-
-#### 4.5.7 Object Instantiation
-
-To create a new object, simply call the class constructor as a function with the required parameters. The `new` keyword is not necessary; the compiler will detect object creation automatically.
-
-```go
-var origin : Point = Point(0, 0)
-```
-
-This syntax instantiates a new `Point` object with `x = 0` and `y = 0`. You can use this pattern for any class:
-
-```go
-var user : UserProfile = UserProfile("Alice", 25)
-```
-
-If the constructor requires no parameters, you can omit the arguments:
-
-```go
-var empty = UserProfile()
-```
-
-#### 4.5.8 Interfaces
-
-Interfaces define a contract of functions that implementing classes must provide.
-
-```go
-interface Drawable {
-    func draw()
-}
-```
-
-#### 4.5.9 Enumerations
-
-Enums are user-defined types representing a set of named constants.
-
-```go
-enum Color {
-    RED,
-    GREEN,
-    BLUE
-}
-```
-
-#### 4.5.9.2 Enumerations with Values
-
-You can assign values to enum members by specifying a type in the enum declaration and providing values in the constructor. This is useful for representing enums with associated data, such as status codes.
-
-```go
-enum HttpStatus(Int) {
-    OK = 200,
-    NOT_FOUND = 404,
-    INTERNAL_ERROR = 500
-}
-```
-
-##### 4.5.9.3 Enum Methods and Properties
-
-```go
-enum Direction {
-    NORTH,
-    SOUTH,
-    EAST,
-    WEST
-
-    func opposite() : (Direction) {
-        switch (this) {
-            case NORTH: return SOUTH
-            case SOUTH: return NORTH
-            case EAST: return WEST
-            case WEST: return EAST
-        }
-    }
-
-    func toString() : (SliceChar) {
-        switch (this) {
-            case NORTH: return "North"
-            case SOUTH: return "South"
-            case EAST: return "East"
-            case WEST: return "West"
-        }
-    }
-}
-```
-
-##### 4.5.9.4 Using Enumerations
-
-```go
-var currentDirection : Direction = Direction.NORTH
-var status : HttpStatus = HttpStatus.OK
-
-if (currentDirection == Direction.NORTH) {
-    print("Moving north")
-}
-
-var oppositeDir = currentDirection.opposite()
-print("Opposite direction: $oppositeDir.toString()")
-```
-
-### 4.6 Statements
+### 6.2 Statements
 
 Statements in Celeris are instructions that perform actions such as variable assignment, function calls, control flow, and exception handling. Each statement can end with a semicolon (`;`), though it may be optional for inline statements.
 
-#### 4.6.1 Statement Types
+#### 6.2.1 Statement Types
 
 - **Declaration Statements:** Define variables, constants, classes, functions, etc.
 - **Assignment Statements:** Assign values to variables.
@@ -1044,11 +784,11 @@ Statements in Celeris are instructions that perform actions such as variable ass
 
 > **Note:** Statements can be nested within blocks `{}` to form compound statements.
 
-#### 4.6.2 Control Flow Statements
+---
 
-Control flow statements determine the execution path of a program based on conditions or branching logic.
+## 7. Control Flow
 
-##### 4.6.2.1 Conditional Statements
+### 7.1 Conditional Statements
 
 - **If Statement:** Executes a block if the condition is true.
     ```go
@@ -1095,26 +835,7 @@ Control flow statements determine the execution path of a program based on condi
 
 > **Note:** If a `break` statement is omitted in a `switch` case, the compiler will not allow compilation and will emit an error.
 
-##### 4.6.2.2 Branching Statements
-
-- **Break:** Exits the nearest enclosing loop or switch.
-    ```go
-    break
-    ```
-
-- **Continue:** Skips to the next iteration of the loop.
-    ```go
-    continue
-    ```
-
-- **Return:** Exits a function and optionally returns a value.
-    ```go
-    return value
-    ```
-
-> Control flow statements can be nested and combined to express complex logic.
-
-#### 4.6.3 Loop Statements
+### 7.2 Loop Statements
 
 Celeris supports several loop constructs for iterative execution:
 
@@ -1178,69 +899,296 @@ for (num in numbers) {
 }
 ```
 
-#### 4.6.3 Exception Handling Statements
+### 7.3 Branching Statements
 
-Exception handling in Celeris is performed using `try`, `catch`, `finally`, and `throw` statements. These constructs allow you to manage errors and exceptional conditions gracefully.
+- **Break:** Exits the nearest enclosing loop or switch.
+    ```go
+    break
+    ```
 
-##### 4.6.3.1 Try-Catch-Finally Syntax
+- **Continue:** Skips to the next iteration of the loop.
+    ```go
+    continue
+    ```
 
-```go
-try {
-    // Code that may throw an exception
-} catch (e : ExceptionType) {
-    // Handle exception
-} finally {
-    // Code that always executes (optional)
-}
-```
+- **Return:** Exits a function and optionally returns a value.
+    ```go
+    return value
+    ```
 
-- The `try` block contains code that may raise exceptions.
-- The `catch` block handles exceptions of the specified type.
-- The `finally` block executes regardless of whether an exception was thrown.
+> Control flow statements can be nested and combined to express complex logic.
 
-##### 4.6.3.2 Throwing Exceptions
+---
 
-Use the `throw` statement to raise an exception:
+## 8. Object-Oriented Programming
 
-```go
-throw ExceptionType("Error message")
-```
+### 8.1 Classes
 
-##### 4.6.3.3 Multiple Catch Blocks
+Classes are user-defined types that encapsulate data and behavior.
 
-You can use multiple `catch` blocks to handle different exception types:
+> **Warning:** A subclass can only inherit one single class or abstract class, and as many interfaces as desired.
 
 ```go
-try {
-    // Code
-} catch (e : IOException) {
-    // Handle IO error
-} catch (e : NullPointerException) {
-    // Handle null pointer error
-}
-```
+class UserProfile {
+    var name : SliceChar
+    var age : Int
 
-###### Example
-
-```go
-func readFile(path : SliceChar) : (SliceChar) {
-    try {
-        var content = File.read(path)
-        return content
-    } catch (e : FileNotFoundException) {
-        print("File not found: $path")
-        throw e
-    } finally {
-        print("Read operation finished.")
+    func greet() {
+        // Implementation
     }
 }
 ```
 
-> **Note:** If an exception is not caught, it propagates up the call stack. Use `throws` in function signatures to declare possible exceptions.
+Classes can include inheritance by implementing other classes or interfaces. To inherit and implement a function from a superclass or interface, simply declare the function with the same name; there is no need to use an `override` keyword as in other languages.
 
-### 4.7 Collections
+```go
+abstract class Pet {
+    var name : SliceChar
+    var age : Int
 
-#### 4.7.1 Type of Collections
+    abstract func pet()
+}
+
+class Dog : Pet {
+    func pet() {
+        print("$name is happy!")
+    }
+}
+```
+
+#### 8.1.1 Class Declaration Syntax
+
+```go
+[internal] [visibility] [abstract] class ClassName {
+    // Member variables
+    var property : Type
+
+    // Member functions
+    func functionName(params) : (ReturnType) {
+        // Function body
+    }
+}
+```
+
+- `internal`: Optional modifier. When specified, the class is only accessible from within the same program after compilation. If the class is part of a library, it cannot be accessed externally, but it remains accessible within the program itself.
+
+- `visibility`: Can be either `private` or `public`. The default is `public` if not specified.
+
+- `abstract`: Optional modifier. When specified, the class will be considered an Abstract class.
+
+- Both `internal` and `visibility` are independent modifiers, so combinations like `internal public` or `internal private` are valid.
+
+### 8.2 Inheritance
+
+A class can inherit from a single base class or abstract class and implement _multiple interfaces_:
+
+```go
+class Square : Rectangle, Drawable {            // Rectangle : Class | Drawable : Interface
+    func draw() {
+        print("Drawing square of size $width")
+    }
+}
+```
+
+### 8.3 `this` and `super` Usage
+
+- `this` refers to the current instance of the class. Use `this` to access member variables and functions from within the class.
+
+    ```go
+    class Person {
+        var name : SliceChar
+
+        func printName() {
+            print(this.name) // Accesses the current instance's name
+        }
+    }
+    ```
+    
+    > Note: If you have multiple variables named `name` and use `print(name)` it will choose first the closest variable, so to use class variable `name` you must use `this.name`.
+
+- `super` is used in a subclass to access functions or constructors from its parent class. Use `super` to call the parent implementation or constructor.
+
+    ```go
+    class Animal {
+        func makeSound() {
+            print("Generic animal sound")
+        }
+    }
+
+    class Dog : Animal {
+        func makeSound() {
+            super.makeSound() // Calls Animal's makeSound
+            print("Woof!")
+        }
+    }
+    ```
+
+    You can also use `super` in constructors to initialize the parent class:
+
+    ```go
+    class Rectangle {
+        var width : Int
+        var height : Int
+
+        Rectangle(w : Int, h : Int) {
+            this.width = w
+            this.height = h
+        }
+    }
+
+    class Square : Rectangle {
+        Square(size : Int) {
+            super(size, size) // Calls Rectangle's constructor
+        }
+    }
+    ```
+
+> **Note:** Use `this` for accessing the current object's members, and `super` for accessing parent class members or constructors.
+
+### 8.4 Abstract Classes
+
+Abstract classes are special classes that cannot be instantiated directly and may contain abstract functions (functions without implementation). They serve as base classes for other classes to inherit and implement the abstract functions. Abstract classes may also contain functions with implementations.
+
+```go
+abstract class Animal {
+    var name : SliceChar
+
+    abstract func makeSound()
+
+    func sleep() {
+        print("$name is sleeping.")
+    }
+}
+```
+
+A subclass must provide implementations for all abstract functions:
+
+```go
+class Cat : Animal {
+    func makeSound() {
+        // Implementation required
+    }
+}
+```
+
+### 8.5 Constructors
+
+Classes can define constructors for initialization:
+
+```go
+class Point {
+    var x : Int
+    var y : Int
+
+    Point(x : Int, y : Int) {
+        this.x = x
+        this.y = y
+    }
+}
+```
+
+### 8.6 Object Instantiation
+
+To create a new object, simply call the class constructor as a function with the required parameters. The `new` keyword is not necessary; the compiler will detect object creation automatically.
+
+```go
+var origin : Point = Point(0, 0)
+```
+
+This syntax instantiates a new `Point` object with `x = 0` and `y = 0`. You can use this pattern for any class:
+
+```go
+var user : UserProfile = UserProfile("Alice", 25)
+```
+
+If the constructor requires no parameters, you can omit the arguments:
+
+```go
+var empty = UserProfile()
+```
+
+### 8.7 Interfaces
+
+Interfaces define a contract of functions that implementing classes must provide.
+
+```go
+interface Drawable {
+    func draw()
+}
+```
+
+### 8.8 Enumerations
+
+Enums are user-defined types representing a set of named constants.
+
+```go
+enum Color {
+    RED,
+    GREEN,
+    BLUE
+}
+```
+
+#### 8.8.1 Enumerations with Values
+
+You can assign values to enum members by specifying a type in the enum declaration and providing values in the constructor. This is useful for representing enums with associated data, such as status codes.
+
+```go
+enum HttpStatus(Int) {
+    OK = 200,
+    NOT_FOUND = 404,
+    INTERNAL_ERROR = 500
+}
+```
+
+#### 8.8.2 Enum Methods and Properties
+
+```go
+enum Direction {
+    NORTH,
+    SOUTH,
+    EAST,
+    WEST
+
+    func opposite() : (Direction) {
+        switch (this) {
+            case NORTH: return SOUTH
+            case SOUTH: return NORTH
+            case EAST: return WEST
+            case WEST: return EAST
+        }
+    }
+
+    func toString() : (SliceChar) {
+        switch (this) {
+            case NORTH: return "North"
+            case SOUTH: return "South"
+            case EAST: return "East"
+            case WEST: return "West"
+        }
+    }
+}
+```
+
+#### 8.8.3 Using Enumerations
+
+```go
+var currentDirection : Direction = Direction.NORTH
+var status : HttpStatus = HttpStatus.OK
+
+if (currentDirection == Direction.NORTH) {
+    print("Moving north")
+}
+
+var oppositeDir = currentDirection.opposite()
+print("Opposite direction: $oppositeDir.toString()")
+```
+
+---
+
+## 9. Collections
+
+### 9.1 Types of Collections
 
 Celeris provides several built-in list and collection types:
 
@@ -1256,7 +1204,7 @@ Celeris provides several built-in list and collection types:
 
 Each collection type provides methods for adding, removing, and accessing elements according to its semantics.
 
-#### 4.7.2 Collection Inheritance
+### 9.2 Collection Inheritance
 
 Collections in Celeris can be extended to create custom data structures. You can inherit from built-in collection types and override or add methods as needed.
 
@@ -1286,7 +1234,7 @@ class UniqueList : List<Int>, Set<Int> {
 
 > **Note:** When inheriting from a collection type, ensure that you maintain the semantics of the base type (e.g., ordering for `List`, uniqueness for `Set`).
 
-#### 4.7.3 Generic Collections
+### 9.3 Generic Collections
 
 Collections can be generic, allowing you to specify the type of elements they contain:
 
@@ -1295,7 +1243,75 @@ var stringList : List<SliceChar> = List<SliceChar>()
 var intSet : Set<Int> = Set<Int>()
 ```
 
-### 4.8 Using
+---
+
+## 10. Error Handling
+
+### 10.1 Exception Handling Statements
+
+Exception handling in Celeris is performed using `try`, `catch`, `finally`, and `throw` statements. These constructs allow you to manage errors and exceptional conditions gracefully.
+
+#### 10.1.1 Try-Catch-Finally Syntax
+
+```go
+try {
+    // Code that may throw an exception
+} catch (e : ExceptionType) {
+    // Handle exception
+} finally {
+    // Code that always executes (optional)
+}
+```
+
+- The `try` block contains code that may raise exceptions.
+- The `catch` block handles exceptions of the specified type.
+- The `finally` block executes regardless of whether an exception was thrown.
+
+#### 10.1.2 Throwing Exceptions
+
+Use the `throw` statement to raise an exception:
+
+```go
+throw ExceptionType("Error message")
+```
+
+#### 10.1.3 Multiple Catch Blocks
+
+You can use multiple `catch` blocks to handle different exception types:
+
+```go
+try {
+    // Code
+} catch (e : IOException) {
+    // Handle IO error
+} catch (e : NullPointerException) {
+    // Handle null pointer error
+}
+```
+
+##### Example
+
+```go
+func readFile(path : SliceChar) : (SliceChar) {
+    try {
+        var content = File.read(path)
+        return content
+    } catch (e : FileNotFoundException) {
+        print("File not found: $path")
+        throw e
+    } finally {
+        print("Read operation finished.")
+    }
+}
+```
+
+> **Note:** If an exception is not caught, it propagates up the call stack. Use `throws` in function signatures to declare possible exceptions.
+
+---
+
+## 11. Package System and Imports
+
+### 11.1 Using Statement
 
 `using` keyword imports classes, interfaces, or entire packages into the current file, granting access to their public members. Example:
 
@@ -1307,32 +1323,39 @@ using dev.zanckor.UserProfile  // imports just UserProfile
 using dev.zanckor.*            // imports all members from package dev/zanckor
 ```
 
-#### 4.8.1 Renaming to avoid conflicts
+#### 11.1.1 Renaming to avoid conflicts
 You can rename an imported class or package using the `as` keyword for easier reference. For example:
 
 ```c++
 using dev.zanckor.MathUtility as Math
 ```
 
-#### 4.8.2 Rules
+#### 11.1.2 Import Rules
 
 - Just public members are accessible
 - `internal` cannot be used outside the same program
 - Avoid using Wildcard imports to avoid namespace conflicts.
 
-#### 4.9 Advanced Language Features
-
-##### 4.9.1 Lambda Expressions
-
-##### 4.9.2 Function Extension
-
 ---
 
-## 5. Memory Management
+## 12. Memory Management
 
 Memory management in Celeris is designed to balance safety, performance, and developer control. The language provides both automatic and manual memory management mechanisms, allowing developers to choose the most appropriate strategy for their use case.
 
-### 5.1 Automatic Memory Management
+### 12.1 Memory Regions
+
+Before diving into memory management strategies, it's important to understand the different memory regions used by Celeris:
+
+#### 12.1.1 Stack
+*[Content to be added - This will explain stack memory allocation, local variables, function parameters, and automatic deallocation]*
+
+#### 12.1.2 Heap
+*[Content to be added - This will explain heap memory allocation, dynamic objects, and lifetime management]*
+
+#### 12.1.3 Remembered Set (RS)
+*[Content to be added - This will explain the RS structure, how it tracks cross-generational references, and its role in garbage collection]*
+
+### 12.2 Automatic Memory Management
 
 Automatic memory management in Celeris is primarily handled through a built-in garbage collector (GC). The GC automatically tracks object lifetimes and reclaims memory that is no longer referenced, reducing the risk of memory leaks and freeing developers from manual deallocation for most use cases.
 
@@ -1342,11 +1365,9 @@ The GC is designed to minimize pause times and system impact, using **incrementa
 
 > **Note:** While automatic memory management simplifies development, understanding GC behavior and object lifetimes is important for writing efficient and predictable code.
 
----
+#### 12.2.1 Object Allocation Strategy
 
-#### 5.1.1 Object Allocation Strategy
-
-Celeris manages non-primitive objects using three strategies: **stack allocation**, **heap promotion**, and **boxing**.
+Celeris manages data using three strategies: **stack allocation**, **heap promotion**, and **boxing**.
 
 ```go
 func foo() {
@@ -1371,7 +1392,8 @@ func foo() {
 } // 'user' is automatically freed when the function exits
 ```
 
-However, not all variables behave this way. Static variables, for example, always reside in the heap and are allocated directly in the Old Generation (OG), so static escape analysis is not necessary. Variables that never escape, such as those in the previous example, remain only on the stack.
+However, not all variables behave this way. Static variables for example, always reside in the heap and are allocated directly in the Old Generation (OG), so static escape analysis is not necessary. Primitive-data is stored only in the Stack, even if it escapes the function, as it costs way more to store it on Heap and add a Link than just copy it to the upper Stack.
+Variables that never escape, such as those in the previous example, remain only on the stack.
 
 Return variables do escape, so escape analysis is applied and they may be promoted to the heap if needed. Inline variables, such as:
 
@@ -1382,8 +1404,6 @@ func foo() {
 ```
 
 do not need to be stored, since the object is used only once and then discarded immediately.
-
-Aqui se habla sobre como, al principio, antes de salir del scope, la memoria se almacena en el Stack, en vez de llevarlo directo al Heap
 
 ##### Heap Promotion
 Objects initially allocated on the stack can be promoted to the heap if they escape the local scope.
@@ -1418,13 +1438,13 @@ In this example, it is not possible to determine at compile time if `p` will be 
 
 ##### Boxing
 
-Aqui se habla de como, al usar `escape`, se omite el Heap Promotion y pasa directamente a Heap
+*[Content about boxing strategy to be added]*
 
 ##### Impact on RC and GC
 
-Resumen del impacto positivo y negativo
+*[Summary of positive and negative impact to be added]*
 
-#### 5.1.2 Garbage Collection Architecture
+#### 12.2.2 Garbage Collection Architecture
 
 Celeris uses a **hybrid generational GC** designed for multi-threaded environments with the following structure:
 
@@ -1493,11 +1513,7 @@ This design ensures that memory operations—especially those involving frequent
 - **Incremental compaction** in OG reduces pauses and fragmentation
 - **Cache optimization** through thread-local allocation patterns
 
----
-
-
-
-#### 5.1.3 GC Life Cycle
+#### 12.2.3 GC Life Cycle
 
 ##### System Impact Optimization
 
@@ -1537,7 +1553,6 @@ Objects allocated in YG are expected to have high turnover; most are collected q
 Memory scanning and collection in YG are accelerated by dividing the region into small cards (e.g., 4 KB each), with references tracked at the card level via the Remembered Set (RS). This allows the garbage collector to efficiently identify and process only the relevant portions of memory, reducing pause times and improving overall performance.
 
 The design of YG ensures that allocation, collection, and promotion are highly efficient, making it ideal for managing the volatile, short-lived objects typical in dynamic applications. Its thread-local nature and card-based tracking contribute to low-latency memory operations and scalable multi-threaded execution.
-Access to OG is synchronized via region locks and write barriers, ensuring thread safety during concurrent operations. The architecture of OG supports efficient memory management for large-scale, multi-threaded applications, balancing throughput and pause times while maintaining data integrity across the program’s lifetime.
 
 ###### Old Generation (OG)
 
@@ -1545,8 +1560,7 @@ The **Old Generation (OG)** is a shared memory region designed for long-lived ob
 
 OG employs bidirectional bump pointer allocation and incremental compaction to manage fragmentation and optimize memory layout. Reference counting in OG is performed lazily, batching updates to reduce overhead and improve performance for stable objects. Cycle collection is handled exclusively in OG, using incremental mark-and-sweep algorithms to detect and reclaim unreachable reference cycles.
 
-Access to OG is synchronized via region locks and write barriers, ensuring thread safety during concurrent operations. The architecture of OG supports efficient memory management for large-scale, multi-threaded applications, balancing throughput and pause times while maintaining data integrity across the program’s lifetime.
-
+Access to OG is synchronized via region locks and write barriers, ensuring thread safety during concurrent operations. The architecture of OG supports efficient memory management for large-scale, multi-threaded applications, balancing throughput and pause times while maintaining data integrity across the program's lifetime.
 
 ###### Remembered Set (RS)
 
@@ -1585,9 +1599,7 @@ By decoupling RS from the heap and leveraging card-based tracking, Celeris achie
 └─────────────────────┘    └──────────────────────┘    └─────────────────────┘
 ```
 
----
-
-#### 5.1.4 Object Promotion System
+#### 12.2.4 Object Promotion System
 
 The promotion system efficiently moves objects from Young Generation to Old Generation based on multiple criteria.
 
@@ -1632,17 +1644,15 @@ When YG reaches 80-90% capacity:
 4. **Reference Updates** - Update all external references atomically
 5. **Post-Promotion** - Cleanup YG space and update GC metadata
 
----
+#### 12.2.5 Reference Counting Systems
 
-#### 5.1.5 Reference Counting Systems
+*[Content to be added]*
 
----
+#### 12.2.6 Cycle Collection
 
-#### 5.1.6 Cycle Collection
+*[Content to be added]*
 
----
-
-#### 5.1.7 Reference Updating
+#### 12.2.7 Reference Updating
 
 When objects are relocated during garbage collection, all references pointing to them must be updated to ensure memory consistency.  
 Celeris employs **Write Barriers** to automatically track and update references without requiring manual intervention.
@@ -1652,7 +1662,7 @@ Celeris employs **Write Barriers** to automatically track and update references 
 - On each pointer update:
   1. The source object is identified.
   2. The new reference is captured.
-  3. The corresponding **Card** is marked as dirty.W
+  3. The corresponding **Card** is marked as dirty.
   4. The **Remembered Set (RS)** is updated to reflect the change.
 
 This guarantees that references (e.g., OG → YG) are always registered and updated without rescanning the entire heap.
@@ -1673,29 +1683,27 @@ This guarantees that references (e.g., OG → YG) are always registered and upda
 - Increased complexity in runtime implementation.  
 - Non-Updated References if WriteBarrier fails (Make WB as mandatory event)
 
----
+### 12.3 Manual Memory Management
 
-### 5.2 Manual Memory Management
+*[Content to be added]*
 
----
+### 12.4 Pointers & References
 
-### 5.3 Pointers & References
+*[Content to be added]*
 
----
+### 12.5 Memory Safety
 
-### 5.4 Memory Safety
+*[Content to be added]*
 
----
+### 12.6 Performance Optimization
 
-### 5.5 Performance Optimization
+*[Content to be added]*
 
----
+### 12.7 Advanced Features
 
-### 5.6 Advanced Features
+*[Content to be added]*
 
----
-
-### 5.7 Memory Header Structure
+### 12.8 Memory Header Structure
 
 Every object in Celeris includes a metadata header for efficient memory management:
 
@@ -1733,119 +1741,73 @@ Every object in Celeris includes a metadata header for efficient memory manageme
 
 ---
 
-## 6. Package System
+## 13. Advanced Language Features
+
+### 13.1 Lambda Expressions
 
 *[Content to be added]*
 
-### 6.1 Package Declaration
-
-*[Content to be added]*
-
-### 6.2 Import System
-
-*[Content to be added]*
-
-### 6.3 Module Resolution
+### 13.2 Function Extension
 
 *[Content to be added]*
 
 ---
 
-## 7. Error Handling
+## 14. Compilation Model
 
 *[Content to be added]*
 
-### 7.1 Exception Types
+### 14.1 Compilation Phases
 
 *[Content to be added]*
 
-### 7.2 Try-Catch-Finally
+### 14.2 Code Generation
 
 *[Content to be added]*
 
-### 7.3 Custom Exceptions
-
-*[Content to be added]*
-
----
-
-## 8. Compilation Model
-
-*[Content to be added]*
-
-### 8.1 Compilation Phases
-
-*[Content to be added]*
-
-### 8.2 Code Generation
-
-*[Content to be added]*
-
-### 8.3 Optimization
+### 14.3 Optimization
 
 *[Content to be added]*
 
 ---
 
-## 9. Standard Library
+## 15. Standard Library
 
 *[Content to be added]*
 
-### 9.1 Core Types
+### 15.1 Core Types
 
 *[Content to be added]*
 
-### 9.2 Collections
+### 15.2 I/O Operations
 
 *[Content to be added]*
 
-### 9.3 I/O Operations
-
-*[Content to be added]*
-
-### 9.4 Utility Functions
+### 15.3 Utility Functions
 
 *[Content to be added]*
 
 ---
 
-## 10. Advanced Features
+## 16. Performance Considerations
 
 *[Content to be added]*
 
-### 10.1 Generics
+### 16.1 Runtime Performance
 
 *[Content to be added]*
 
-### 10.2 Reflection
+### 16.2 Memory Usage
 
 *[Content to be added]*
 
-### 10.3 Annotations
-
-*[Content to be added]*
-
----
-
-## 11. Performance Considerations
-
-*[Content to be added]*
-
-### 11.1 Runtime Performance
-
-*[Content to be added]*
-
-### 11.2 Memory Usage
-
-*[Content to be added]*
-
-### 11.3 Optimization Guidelines
+### 16.3 Optimization Guidelines
 
 *[Content to be added]*
 
 ---
 
-## 12. Appendices
+## 17. Appendices
 
 ### Appendix A: Grammar Reference
 

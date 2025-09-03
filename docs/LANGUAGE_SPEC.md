@@ -1500,7 +1500,7 @@ This design ensures that memory operations—especially those involving frequent
 ##### Reference Counting
 
 - **Young Generation:** Immediate reference counting
-- **Old Generation:** Lazy reference counting for performance
+- **Old Generation:** Delayed reference counting for performance
 
 ##### Cycle Collection
 
@@ -1522,7 +1522,7 @@ This design ensures that memory operations—especially those involving frequent
 | **Thread-local YG** | Reduced lock contention, improved cache locality |
 | **Shared OG** | Controlled access via region locks and write barriers |
 | **Incremental GC** | Minimized pause times through region-based processing |
-| **Lazy RC & CC** | Reduced overhead by deferring expensive checks |
+| **Delayed RC & CC** | Reduced overhead by deferring expensive checks |
 | **Smart Memory Movement** | Card-based tracking avoids full reference scanning |
 | **Large Object Handling** | Direct OG allocation prevents frequent copying |
 
@@ -1539,13 +1539,15 @@ graph TD
     F -->|No| H[Collect/Keep in YG]
     G --> I[Major GC]
     D --> I
-    I --> J[Lazy RC + Cycle Collection]
+    I --> J[Delayed RC + Cycle Collection]
     J --> K[Incremental Compaction]
 ```
 
 ##### Memory Regions Detail
 
 ###### Young Generation (YG)
+
+> TODO: Modificar diseño para que se adapte a un YG con tamaño variable, para que no todos ocupen lo mismo si no tienen uso real
 
 The **Young Generation (YG)** is a thread-local memory region dedicated to the allocation of new and short-lived objects. Each thread in the program maintains its own YG, which minimizes contention and maximizes cache locality. YG is compact, typically ranging from 512 KB to 1 MB, and is optimized for rapid allocation and deallocation using bump pointer techniques.
 
@@ -1594,7 +1596,7 @@ By decoupling RS from the heap and leveraging card-based tracking, Celeris achie
 │ │ Card N (4KB)    │ │    │ │ Ref Tracking    │  │    │ │ Bidirectional   │ │
 │ └─────────────────┘ │    │ │ Promotion Logic │  │    │ │ Bump Pointers   │ │
 │                     │    │ │ Update Batching │  │    │ └─────────────────┘ │
-│ Immediate RC        │    │ └─────────────────┘  │    │ Lazy RC + CC        │
+│ Immediate RC        │    │ └─────────────────┘  │    │ Delayd RC + CC      │
 │ No Synchronization  │    │                      │    │ Incremental Compact │
 └─────────────────────┘    └──────────────────────┘    └─────────────────────┘
 ```
@@ -1708,6 +1710,8 @@ This guarantees that references (e.g., OG → YG) are always registered and upda
 Every object in Celeris includes a metadata header for efficient memory management:
 
 #### Header Layout
+
+> TODO: Modificar HEADER para que sea multi-objeto
 
 | Field | Size | Description |
 |-------|------|-------------|

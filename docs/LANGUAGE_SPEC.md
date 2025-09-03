@@ -1340,20 +1340,120 @@ using dev.zanckor.MathUtility as Math
 
 ## 12. Memory Management
 
-Memory management in Celeris is designed to balance safety, performance, and developer control. The language provides both automatic and manual memory management mechanisms, allowing developers to choose the most appropriate strategy for their use case.
+Memory management in Celeris is designed to balance safety, performance, and developer control. The language provides automatic memory management through a hybrid system that combines Reference Counting with Garbage Collection, along with intelligent stack allocation through escape analysis.
 
-### 12.1 Memory Regions
+### 12.1 Overview
+
+Celeris uses a sophisticated memory management system with the following key components:
+
+#### Memory Regions
 
 Before diving into memory management strategies, it's important to understand the different memory regions used by Celeris:
 
-#### 12.1.1 Stack
-*[Content to be added - This will explain stack memory allocation, local variables, function parameters, and automatic deallocation]*
+1. Stack
 
-#### 12.1.2 Heap
-*[Content to be added - This will explain heap memory allocation, dynamic objects, and lifetime management]*
+The **Stack** is a region of memory used for fast allocation and deallocation of short-lived variables and objects. It operates in a last-in, first-out (LIFO) manner, meaning that memory is allocated as functions are called and released as they return. Stack allocation is managed automatically by the compiler, with no need for manual intervention or garbage collection.
 
-#### 12.1.3 Remembered Set (RS)
-*[Content to be added - This will explain the RS structure, how it tracks cross-generational references, and its role in garbage collection]*
+### Stack Characteristics
+
+- **Scope-bound:** Variables and objects allocated on the stack exist only within the scope (function or block) in which they are declared. When the scope ends, memory is immediately reclaimed.
+- **No GC/RC Overhead:** Stack objects do not require reference counting or garbage collection metadata, resulting in minimal allocation overhead and fast access.
+- **Primitive Storage:** Primitive types (e.g., `Int`, `Float`, `Bool`) are always stored on the stack, even if they escape the function scope, as copying is more efficient than heap allocation.
+- **Escape Analysis:** The compiler performs escape analysis to determine if an object can remain on the stack or must be promoted to the heap. Objects that do not escape their scope are stack-allocated; those that do are promoted.
+- **Thread-local:** Each thread has its own stack, preventing contention and improving cache locality.
+
+2. Heap
+
+The **Heap** is a region of memory used for dynamic allocation of objects whose lifetimes cannot be determined at compile time. Objects promoted from the stack, returned from functions, or referenced globally are allocated in the heap and managed by the garbage collector (GC) and reference counting (RC) systems.
+
+### Heap Characteristics
+
+- **Dynamic Lifetime:** Objects in the heap can outlive the scope in which they were created, supporting flexible data structures and persistent storage.
+- **GC/RC Management:** All heap objects include metadata for garbage collection and reference counting, enabling automatic memory reclamation and cycle detection.
+- **Promotion:** Objects are promoted from stack to heap when they escape their local scope, such as being returned from a function or stored in a global/static variable.
+- **Compaction:** The heap is periodically compacted to reduce fragmentation and optimize memory layout.
+
+### Thread-local Young Generation
+
+- **Purpose:** Stores newly allocated, short-lived objects for each thread, minimizing contention and maximizing cache locality.
+- **Size:** Typically 256 KB to 4 MB per thread, based on allocation patterns.
+- **Allocation:** Uses bump pointer allocation for fast, lock-free object creation.
+- **Collection:** Frequent minor GC cycles reclaim memory from objects that do not survive, promoting survivors to the Old Generation.
+
+### Shared Old Generation
+
+- **Purpose:** Stores long-lived and large objects, accessible by all threads.
+- **Growth:** Dynamically expands as needed to accommodate persistent data.
+- **Allocation:** Employs bidirectional bump pointer allocation and incremental compaction to manage fragmentation.
+- **Synchronization:** Access is controlled via region locks and write barriers to ensure thread safety.
+
+### Card-based Reference Tracking
+
+- **Cards:** The heap is divided into small regions (cards), typically 4 KB each, to optimize reference tracking and GC efficiency.
+- **Remembered Set (RS):** Tracks references between objects at the card level, allowing the GC to update only relevant regions during object relocation.
+- **Benefits:** Reduces memory overhead, accelerates GC cycles, and enables efficient promotion and reference updates.
+- **Integration:** Works with write barriers to maintain up-to-date reference mappings and prevent dangling pointers.
+
+
+3. Remembered Set (RS)
+
+The **Remembered Set (RS)** is a specialized data structure used to efficiently track references between objects across different memory region. RS operates outside the main heap, ensuring its integrity and persistence regardless of garbage collection (GC) cycles or heap compaction. Its primary role is to record, for each object, the set of memory regions (cards) that contain references to it, enabling fast updates and minimal scanning during GC and object relocation.
+
+### RS Characteristics
+
+- **External Storage:** RS is maintained in a separate memory area, not affected by GC or heap reorganization.
+- **Object-to-Card Mapping:** For each object, RS stores a list of cards where references to that object exist.
+- **Promotion Optimization:** RS helps determine when objects should be promoted from YG to OG based on RS references.
+- **Efficient Reference Updates:** When an object is moved, RS allows the runtime to update only the relevant cards, avoiding full-heap scans.
+- **Reference Counting Support:** RS enables accurate reference counting by tracking all referencing locations.
+- **Periodic Compaction:** RS is periodically cleaned to remove references to objects that have been freed, preventing stale mappings and reducing overhead.
+
+### Cards
+
+- **Card Structure:** The heap is divided into small, fixed-size regions called cards (typically 4 KB each).
+- **Reference Tracking:** RS records which cards contain references to a given object, rather than tracking every individual reference.
+- **GC Efficiency:** During GC or object relocation, only the cards listed in RS are scanned and updated, greatly reducing pause times and memory overhead.
+- **Dirty Card Marking:** Write barriers mark cards as "dirty" when references are updated, ensuring RS remains consistent.
+- **Scalability:** Card-based tracking allows Celeris to scale efficiently in multi-threaded environments, as reference updates and GC cycles are localized to affected cards.
+
+4. ThreadOwner System
+
+The **ThreadOwner System** is a concurrency control mechanism designed to ensure thread safety and prevent race conditions during memory operations in Celeris. It operates independently from the Remembered Set (RS), focusing on ownership rather than reference tracking.
+
+### ThreadOwner Characteristics
+
+- **Bitmap Mapping:** Each object in memory is associated with a compact bitmap entry that records its current owning thread.
+- **Object-to-Thread Mapping:** The system maintains a mapping of `Object → ThreadOwner`, allowing the runtime to instantly determine which thread has exclusive access to any given object.
+- **Lock-Free Safety:** Before any memory operation (read, write, or relocation), the system consults the bitmap to verify thread ownership, enabling lock-free concurrency and preventing simultaneous modifications.
+- **Ownership Transfer:** When an object needs to be accessed by a different thread, the ThreadOwner bitmap is atomically updated to reflect the new owner, ensuring safe handoff without heavy locking.
+- **Integration with Memory Management:** ThreadOwner works alongside GC and RC systems, providing an additional layer of safety for multi-threaded programs, especially during object promotion and relocation.
+
+### ThreadOwner System Structure
+
+The ThreadOwner system is implemented as a memory-resident bitmap with the following structure:
+
+```
+Object → ThreadOwnerID
+```
+
+For each object, the bitmap stores the identifier of the thread that currently owns it. This mapping is essential for:
+
+- **Preventing Race Conditions:** Ensuring that only the owning thread can modify or relocate an object.
+- **Safe Object Movement:** Coordinating ownership during GC, compaction, and promotion between memory regions.
+- **Efficient Concurrency:** Enabling fast, lock-free checks and updates for thread ownership.
+
+> **Note:** The ThreadOwner system complements the Remembered Set by focusing on thread-level ownership, providing robust safety for concurrent memory operations in Celeris.
+
+
+The **ThreadOwner** system is a concurrency control mechanism that tracks which thread owns each object in memory. It uses a compact bitmap mapping:
+
+- **Object → ThreadOwner:** Each object is associated with a bitmap entry indicating its owning thread.
+- **Lock-Free Safety:** Before any memory operation, the system consults
+This architecture enables Celeris to maintain high performance and memory safety, especially in programs with frequent object movement and dynamic allocation patterns.
+
+#### 12.1.1 Periodic Reference Set Optimization
+
+To maintain efficiency, the Remembered Set (RS) undergoes periodic cleanup cycles. During these cycles, older RS entries are checked to verify if the referenced objects are still in use. Entries that no longer point to live objects are removed, reducing memory overhead and preventing stale reference tracking. This process ensures that the RS remains compact and only contains relevant mappings, optimizing GC performance and memory usage.
 
 ### 12.2 Automatic Memory Management
 
@@ -1452,7 +1552,7 @@ Celeris uses a **hybrid generational GC** designed for multi-threaded environmen
 
 | Region | Ownership | Initial Size | Purpose |
 |--------|-----------|-------------|----------|
-| **Young Generation (YG)** | Thread-local | 512 KB - 1 MB | New, short-lived objects |
+| **Young Generation (YG)** | Thread-local | 256 KB - 1 MB | New, short-lived objects |
 | **Old Generation (OG)** | Shared | Variable | Long-lived objects and large allocations |
 
 ##### Cards Layout
@@ -1547,8 +1647,6 @@ graph TD
 
 ###### Young Generation (YG)
 
-> TODO: Modificar diseño para que se adapte a un YG con tamaño variable, para que no todos ocupen lo mismo si no tienen uso real
-
 The **Young Generation (YG)** is a thread-local memory region dedicated to the allocation of new and short-lived objects. Each thread in the program maintains its own YG, which minimizes contention and maximizes cache locality. YG is compact, typically ranging from 512 KB to 1 MB, and is optimized for rapid allocation and deallocation using bump pointer techniques.
 
 Objects allocated in YG are expected to have high turnover; most are collected quickly during frequent Minor GC cycles. Only objects that survive multiple GC cycles, exceed certain size thresholds, or meet promotion criteria are moved to the Old Generation (OG) for longer lifetimes. Reference counting in YG is immediate and thread-local, enabling fast updates without synchronization overhead.
@@ -1578,28 +1676,27 @@ Object → List<Cards>
 
 This means that for any given object, you can quickly retrieve all the cards that contain references to it. This mapping is essential for:
 
-- **Promotion Optimization:** Determining when an object should be promoted based on cross-generational references.
+- **Promotion Optimization:** Determining when an object should be promoted based on RS references.
 - **Reference Updates:** Efficiently updating all references if an object is moved during GC or compaction.
 - **Reference Counting (RC):** Accurately maintaining reference counts by knowing all referencing locations.
 
 By decoupling RS from the heap and leveraging card-based tracking, Celeris achieves fast, scalable memory management with minimal overhead and high GC efficiency.
 
+To maintain efficiency, the Remembered Set (RS) undergoes periodic cleanup cycles. During these cycles, older RS entries are checked to verify if the referenced objects are still in use. Entries that no longer point to live objects are removed, reducing memory overhead and preventing stale reference tracking. This process ensures that the RS remains compact and only contains relevant mappings, optimizing GC performance and memory usage.
+
 > **Note:** The RS must be periodically compacted and cleaned to remove references to objects that have already been freed. This maintenance ensures that the RS does not retain stale references, keeping memory usage efficient and preventing unnecessary reference tracking.
 
-```
-┌─────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
-│   Thread-local YG   │    │    Remembered Set    │    │    Shared OG        │
-│                     │    │   (External Heap)    │    │                     │
-│ ┌─────────────────┐ │    │ Object → List<Cards> │    │ ┌─────────────────┐ │
-│ │ Card 1 (4KB)    │ │◄──►│                      │◄──►│ │ Region Locks    │ │
-│ │ Card 2 (4KB)    │ │    │ ┌─────────────────┐  │    │ │ Write Barriers  │ │
-│ │ Card N (4KB)    │ │    │ │ Ref Tracking    │  │    │ │ Bidirectional   │ │
-│ └─────────────────┘ │    │ │ Promotion Logic │  │    │ │ Bump Pointers   │ │
-│                     │    │ │ Update Batching │  │    │ └─────────────────┘ │
-│ Immediate RC        │    │ └─────────────────┘  │    │ Delayd RC + CC      │
-│ No Synchronization  │    │                      │    │ Incremental Compact │
-└─────────────────────┘    └──────────────────────┘    └─────────────────────┘
-```
+##### ThreadOwner System
+
+The **ThreadOwner** system is a concurrency control mechanism designed to prevent race conditions and ensure thread safety during memory operations. Unlike the Remembered Set (RS), which tracks references between objects and memory regions, ThreadOwner uses a compact bitmap to record ownership information for each object.
+
+- **Bitmap Mapping:** Each object in memory is associated with a bitmap entry indicating its current owning thread.
+- **Ownership Tracking:** The bitmap stores mappings of `Object → ThreadOwner`, allowing the runtime to instantly determine which thread has exclusive access to any given object.
+- **Lock-Free Safety:** By consulting the bitmap before performing memory operations, the system can prevent concurrent modifications and avoid race conditions without heavy locking.
+
+This mapping ensures that at any moment, the system knows which thread controls each object, enabling safe multi-threaded memory management.
+
+> **Note:** The ThreadOwner system complements the Remembered Set by focusing on thread-level ownership rather than reference tracking, providing an additional layer of safety for concurrent programs.
 
 #### 12.2.4 Object Promotion System
 
@@ -1633,7 +1730,7 @@ When YG reaches 80-90% capacity:
 └── Prevent allocation failures proactively
 ```
 
-###### 5. Cross-Generation References
+###### 5. Remembered Set References
 - **Trigger:** >40% of references from OG, or ≥3 OG references
 - **Tracking:** Atomic reference count updates in object headers
 - **Benefit:** Reduces copying overhead for OG-referenced objects
@@ -1667,7 +1764,7 @@ Celeris employs **Write Barriers** to automatically track and update references 
   3. The corresponding **Card** is marked as dirty.
   4. The **Remembered Set (RS)** is updated to reflect the change.
 
-This guarantees that references (e.g., OG → YG) are always registered and updated without rescanning the entire heap.
+This guarantees that references are always registered and updated without rescanning the entire heap.
 
 ##### Integration with Remembered Sets
 - Instead of storing every individual reference, the RS keeps mappings from objects to **Cards** (4KB memory regions).  
@@ -1699,7 +1796,38 @@ This guarantees that references (e.g., OG → YG) are always registered and upda
 
 ### 12.6 Performance Optimization
 
-*[Content to be added]*
+#### Observability Metrics
+
+To optimize and debug memory management, Celeris implements observability metrics in the GC and allocators:
+
+- **allocationRate** per thread: Tracks object allocation speed for each thread.
+- **pauseTime** per generation: Measures GC pause durations for Young and Old Generation.
+- **promotionRate**: Monitors the rate at which objects are promoted from YG to OG.
+- **RS size growth**: Records the growth of the Remembered Set over time.
+
+All metrics are logged in lock-free, per-thread structures to avoid impacting performance. These logs enable dynamic debugging and adaptive tuning, such as resizing Young Generation (YG) per program. For example, if most YGs average 1GB usage, the system can start with 1GB instead of the default 256KB, reducing future data copying.
+
+#### Performance Model
+
+Celeris includes an internal simulation module to estimate GC pauses and throughput for a given set of threads and objects:
+
+- **pauseTime** ≈ f(allocatedBytes, YGSize, numThreads)
+- **promotionRate** ≈ f(objectAgeHistogram)
+
+This model helps predict performance bottlenecks and guides tuning decisions.
+
+#### Adaptive Algorithms
+
+Based on collected metrics, Celeris dynamically adjusts:
+
+- **YoungGen size**: Scales YG up or down according to allocation patterns.
+- **Major GC frequency**: Modifies how often major collections run.
+- **Promotion thresholds**: Alters object age or size criteria for promotion.
+
+#### Configurable Knobs
+
+All tunable parameters (e.g., YG size min/max, card size, compaction frequency) are documented and can be configured via CLI or configuration files, allowing fine-grained control over memory management behavior.
+
 
 ### 12.7 Advanced Features
 
@@ -1709,21 +1837,15 @@ This guarantees that references (e.g., OG → YG) are always registered and upda
 
 Every object in Celeris includes a metadata header for efficient memory management:
 
-#### Header Layout
-
-> TODO: Modificar HEADER para que sea multi-objeto
-
 | Field | Size | Description |
 |-------|------|-------------|
 | `vtablePointer` | 8 B | Method/class dispatch table |
 | `allocationSize` | 4 B | Total object size in bytes |
 | `flags` | 1 B | Generation + control flags |
-| `padding` | 1 B | 8-byte alignment |
-| `referenceCount` | 2 B | Active reference counter |
-| `threadOwner` | 4 B | Owning thread identifier |
-| **Cross-gen refs** | External | Separate RS structure (~8B avg) |
+| `referenceCount` | 1 B | Active reference counter |
+| **RS refs** | External | Separate RS structure (~8B avg) |
 
-**Total Header Size:** ~20 bytes (excluding RS)
+**Total Header Size:** ~14 bytes (excluding RS)
 
 #### Flag Bits Configuration
 
@@ -1736,10 +1858,10 @@ Every object in Celeris includes a metadata header for efficient memory manageme
 | **2** | Marked | `0` Unvisited, `1` Visited | GC traversal state |
 | **1-0** | Reserved | `00` | Future feature expansion |
 
-#### Cross-Generation References (RS)
+#### Remembered Set References (RS)
 
 - **External storage** to minimize header size
-- **One entry per object** with cross-generational references  
+- **One entry per object** with RS references  
 - **Average overhead:** ~8 bytes per participating object
 - **Automatic management** by runtime and compiler
 

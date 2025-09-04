@@ -1416,41 +1416,6 @@ The **Remembered Set (RS)** is a specialized data structure used to efficiently 
 - **Dirty Card Marking:** Write barriers mark cards as "dirty" when references are updated, ensuring RS remains consistent.
 - **Scalability:** Card-based tracking allows Celeris to scale efficiently in multi-threaded environments, as reference updates and GC cycles are localized to affected cards.
 
-4. ThreadOwner System
-
-The **ThreadOwner System** is a concurrency control mechanism designed to ensure thread safety and prevent race conditions during memory operations in Celeris. It operates independently from the Remembered Set (RS), focusing on ownership rather than reference tracking.
-
-### ThreadOwner Characteristics
-
-- **Bitmap Mapping:** Each object in memory is associated with a compact bitmap entry that records its current owning thread.
-- **Object-to-Thread Mapping:** The system maintains a mapping of `Object → ThreadOwner`, allowing the runtime to instantly determine which thread has exclusive access to any given object.
-- **Lock-Free Safety:** Before any memory operation (read, write, or relocation), the system consults the bitmap to verify thread ownership, enabling lock-free concurrency and preventing simultaneous modifications.
-- **Ownership Transfer:** When an object needs to be accessed by a different thread, the ThreadOwner bitmap is atomically updated to reflect the new owner, ensuring safe handoff without heavy locking.
-- **Integration with Memory Management:** ThreadOwner works alongside GC and RC systems, providing an additional layer of safety for multi-threaded programs, especially during object promotion and relocation.
-
-### ThreadOwner System Structure
-
-The ThreadOwner system is implemented as a memory-resident bitmap with the following structure:
-
-```
-Object → ThreadOwnerID
-```
-
-For each object, the bitmap stores the identifier of the thread that currently owns it. This mapping is essential for:
-
-- **Preventing Race Conditions:** Ensuring that only the owning thread can modify or relocate an object.
-- **Safe Object Movement:** Coordinating ownership during GC, compaction, and promotion between memory regions.
-- **Efficient Concurrency:** Enabling fast, lock-free checks and updates for thread ownership.
-
-> **Note:** The ThreadOwner system complements the Remembered Set by focusing on thread-level ownership, providing robust safety for concurrent memory operations in Celeris.
-
-
-The **ThreadOwner** system is a concurrency control mechanism that tracks which thread owns each object in memory. It uses a compact bitmap mapping:
-
-- **Object → ThreadOwner:** Each object is associated with a bitmap entry indicating its owning thread.
-- **Lock-Free Safety:** Before any memory operation, the system consults
-This architecture enables Celeris to maintain high performance and memory safety, especially in programs with frequent object movement and dynamic allocation patterns.
-
 #### 12.1.1 Periodic Reference Set Optimization
 
 To maintain efficiency, the Remembered Set (RS) undergoes periodic cleanup cycles. During these cycles, older RS entries are checked to verify if the referenced objects are still in use. Entries that no longer point to live objects are removed, reducing memory overhead and preventing stale reference tracking. This process ensures that the RS remains compact and only contains relevant mappings, optimizing GC performance and memory usage.
@@ -1686,18 +1651,6 @@ To maintain efficiency, the Remembered Set (RS) undergoes periodic cleanup cycle
 
 > **Note:** The RS must be periodically compacted and cleaned to remove references to objects that have already been freed. This maintenance ensures that the RS does not retain stale references, keeping memory usage efficient and preventing unnecessary reference tracking.
 
-##### ThreadOwner System
-
-The **ThreadOwner** system is a concurrency control mechanism designed to prevent race conditions and ensure thread safety during memory operations. Unlike the Remembered Set (RS), which tracks references between objects and memory regions, ThreadOwner uses a compact bitmap to record ownership information for each object.
-
-- **Bitmap Mapping:** Each object in memory is associated with a bitmap entry indicating its current owning thread.
-- **Ownership Tracking:** The bitmap stores mappings of `Object → ThreadOwner`, allowing the runtime to instantly determine which thread has exclusive access to any given object.
-- **Lock-Free Safety:** By consulting the bitmap before performing memory operations, the system can prevent concurrent modifications and avoid race conditions without heavy locking.
-
-This mapping ensures that at any moment, the system knows which thread controls each object, enabling safe multi-threaded memory management.
-
-> **Note:** The ThreadOwner system complements the Remembered Set by focusing on thread-level ownership rather than reference tracking, providing an additional layer of safety for concurrent programs.
-
 #### 12.2.4 Object Promotion System
 
 The promotion system efficiently moves objects from Young Generation to Old Generation based on multiple criteria.
@@ -1754,33 +1707,50 @@ When YG reaches 80-90% capacity:
 #### 12.2.7 Reference Updating
 
 When objects are relocated during garbage collection, all references pointing to them must be updated to ensure memory consistency.  
-Celeris employs **Write Barriers** to automatically track and update references without requiring manual intervention.
+Celeris employs **Write Barriers** and **Dirty Cards** to automatically track and update references without requiring manual intervention, while optimizing runtime performance.
 
-##### Write Barriers
+##### Write Barriers and Dirty Cards
 - A **Write Barrier** is a lightweight runtime check triggered whenever a pointer field in an object is modified.  
-- On each pointer update:
+- Instead of immediately updating reference counts (RC) on every assignment, Celeris uses **Deferred RC**:
   1. The source object is identified.
-  2. The new reference is captured.
-  3. The corresponding **Card** is marked as dirty.
-  4. The **Remembered Set (RS)** is updated to reflect the change.
+  2. The new reference is assigned to the field.
+  3. The corresponding **Card** (a fixed-size memory region, e.g., 512B–1KB) is marked as **dirty**.
+  4. **No RC changes occur immediately**; the RC update is deferred to a later GC or batch processing step.
 
-This guarantees that references are always registered and updated without rescanning the entire heap.
+- This allows multiple pointer updates within the same card to be aggregated, **reducing the number of runtime operations** from 4 per assignment to 1 per card.
+
+##### Minor GC / RC Update
+- Periodically, the GC or RC subsystem scans **only dirty cards**:
+  1. For each object in the card, the current references are compared against a **shadow copy** (snapshot of previous references).
+  2. For each added reference: `RC(newRef)++`
+  3. For each removed reference: `RC(oldRef)--`
+  4. The shadow copy is updated to reflect the new references.
+  5. The card is marked clean.
+
+- Example:  
+  - Old references: `A, B, C`  
+  - New references: `A, B, D`  
+  - RC updates: `RC(C)--`, `RC(D)++`  
+
+- **Benefits:** runtime overhead is minimized, and RC updates are performed in batch, improving cache locality and reducing hot path costs.
 
 ##### Integration with Remembered Sets
-- Instead of storing every individual reference, the RS keeps mappings from objects to **Cards** (4KB memory regions).  
-- This reduces memory overhead significantly, since multiple references often cluster within the same card.  
-- During relocation, only the cards listed in the RS need to be rescanned and updated, minimizing GC pause times.
+- Instead of storing every individual reference, the RS keeps mappings from objects to **Cards**.  
+- During GC, only the dirty cards in the RS are scanned and updated, minimizing heap traversal and improving performance.  
+- Multiple references inside a single card are processed together, reducing both metadata overhead and cache misses.
 
 ##### Advantages
-- **Automatic tracking** of references during program execution.
-- **Reduced memory cost** compared to alias-based approaches.
-- **Faster relocation** by limiting scanning to dirty cards instead of the full heap.
-- **Safety**: prevents dangling references by ensuring RS is always consistent.
+- **Automatic tracking** of references during program execution.  
+- **Reduced runtime overhead**: 1 operation per card vs 4 per reference.  
+- **Batch RC updates** improve cache locality.  
+- **Safety**: ensures RC correctness and prevents dangling references.  
+- **Scalability**: ideal for heaps with many small objects and frequent assignments.
 
-##### Limitations to Fix
-- Slight overhead on each pointer assignment due to the Write Barrier.  
-- Increased complexity in runtime implementation.  
-- Non-Updated References if WriteBarrier fails (Make WB as mandatory event)
+##### Limitations / Trade-offs
+- RC updates are **deferred**, so objects may survive slightly longer before being freed.  
+- Minor GC or batch RC update introduces **pauses**, which can be longer than immediate WB updates.  
+- Shadow copy and card tracking increase **implementation complexity**.  
+- Write Barrier failures could leave references untracked (must be made a mandatory operation).
 
 ### 12.3 Manual Memory Management
 

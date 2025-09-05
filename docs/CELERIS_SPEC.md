@@ -805,10 +805,34 @@ class Pet : Animal {
 - `Pet` inherits `age` from `Animal`, allowing it use `pet.crawl()` and `pet.age` from `Animal`.
 - The subclass must call `super()` to initialize the parent before. `super()` must be teh first instruction unless the parent has a default constructor that can be used automatically.
 
+4.1. Override
 
 Function `override` occours in the previous example, allowing to change functions from `Animal` inside `Pet` class.
 In order to override a function, you need to replicate the same function inside the child's class with same `parameters` and `returns`.
 Furthermore, you can use `super` keyword from overrided function to call `parent's function`, executing it whenever you call `super()`, as if you wirte `animal.function()`.
+
+4.2. Overload
+
+If two functions share the same name—whether one is inherited and another is defined in the class—but do not meet the parameter conditions required for an override, this is called an overload. Overloading allows you to define multiple functions with the same name but different parameters (type, number, or order), enabling greater flexibility and code reuse.
+
+**Example:**
+```go
+class Printer {
+    func print(value : Int) {
+        // Prints an integer
+    }
+
+    func print(value : SliceChar) {
+        // Prints a string
+    }
+
+    func print(value : Int, format : SliceChar) {
+        // Prints an integer with formatting
+    }
+}
+```
+
+In this example, the `Printer` class has three `print` functions with different signatures. The compiler automatically selects the appropriate function based on the arguments provided when calling `print`.
 
 5. Encapsulation
 Encapsulation controls the visibility of properties and functions.
@@ -1018,7 +1042,211 @@ class UserRepository : Repository<User> {
 
 #### Objects
 
+Objects are instances of classes. A class serves as a blueprint or template, defining the structure and behavior (properties and methods) but not containing actual data. When you instantiate a class, you create an object that fills in the template with specific values.
+
+For example, you might define a class `Car` with properties like `color` and `model`, but only when you create an object (e.g., `var myCar = Car("red", "sedan")`) do those properties hold real data.
+
+Each object instance has its own copy of properties and methods, meaning changes to one object do not affect others. For example, modifying `myCar.color` does not change the color of another `Car` object.
+
+##### Instantiation
+
+To instantiate an object in Celeris, use the class name followed by parentheses containing any required constructor arguments. This creates a new instance and returns a reference to it.
+
+**Example:**
+```go
+class User {
+    var name : SliceChar
+    var age : Int
+
+    User(name : SliceChar, age : Int) {
+        this.name = name
+        this.age = age
+    }
+}
+
+var user = User("Alice", 30)
+```
+
+You can also instantiate objects with default or empty constructors if no parameters are required:
+
+```go
+class Point {
+    var x : Int
+    var y : Int
+
+    Point() {
+        x = 0
+        y = 0
+    }
+}
+
+var origin = Point()
+```
+
+If the class has multiple constructors, the appropriate one is selected based on the arguments provided.
+
+Objects can be instantiated inline, assigned to variables, or passed directly as arguments to functions:
+
+```go
+print(User("Bob", 25))
+```
+
+##### Memory Model
+
+- **Primitive types** (such as `Int`, `Float`, `Bool`, etc.) are stored on the stack, this way when the scope is finished (e.g. finish function execution) the variable is freed. Their values are copied when assigned to new variables or passed to functions, ensuring isolation between instances.
+
+- **Complex types** (such as classes, interfaces, arrays, etc.) are stored initially on the stack, similar to primitive type, but Compiler can check if variable escapes the scope, by being referenced outside the function. This allows it to be directly stored on Heap, that has a slower access but Garbage Collector manages all the memory collection. When the value needs to be used outside, instead of being copied like Primitive Types, a pointer is assigned referencing the instance, allowing reference without copying the same object and managing it from multiple locations.
+
+**Example:**
+```go
+var a : Int = 10
+var b = a
+b = 20
+// a is still 10, b is 20 (primitives are copied)
+
+var user1 = User("Alice", 30)
+var user2 = user1
+user2.name = "Bob"
+// user1.name is now "Bob" (objects are referenced)
+```
+
+**Garbage Collection:**  
+When no references to a heap-allocated object remain, the Garbage Collector automatically frees its memory. This prevents memory leaks and simplifies resource management.
+
+**Escape Analysis:**  
+Celeris uses escape analysis to determine whether an object can be safely allocated on the stack or must be placed on the heap. The `escape` keyword can be used to force heap allocation for specific variables.
+
+**Static Objects:**
+Static properties and methods belong to the class itself, not to any particular object. If you change a static property, the change is reflected across all instances and can be accessed without creating an object.
+
 #### Enumerations
+# Celeris Enumerations Specification
+
+Enumerations are complex types that consist of a set of values with fixed names, each of which has an identifying value. They can be compared to constants in their usage, as they serve to improve the use of tags or labels in parameters.
+
+For example, if you had a `Car` object that requires a vehicle brand in its constructor, you would have three options:
+
+* Use the name directly, which may result in some developers writing `"Kia"`, `"Kya"`, `"kia"`, `"kai"`, and other typos. This would require costly validation checks.
+* Use indexed numbers to avoid typos. This solves validation issues but leaves the developer unable to understand the meaning of the data at a glance.
+* Use constants, which is ideal as they have a fixed name, can be used in conditions by value, and are easily understood by the developer. However, if you need to use them in multiple places, you would need to create multiple constants or make them static. Additionally, they only allow single-valued constants, whether text or numbers.
+
+Enumerations are designed to solve these problems, allowing usage from any context, with unique identifiers through the `Scope` technique, and enabling associated values such as text, integers, etc., in addition to the enumerator itself.
+
+---
+
+##### Syntax
+
+```go
+enum Name [: UnderlyingType] {
+    Case1 [= value],
+    Case2 [= value],
+    Case3 [= value]
+}
+
+enum Packet {
+    Connect(username: SliceChar),
+    Data(payload: ByteArray),
+    Error(code: Int, message: SliceChar)
+}
+```
+
+---
+
+##### Underlying Type
+
+Underlying types specify how the indices of the constants are represented. For instance, if you want to create an enum for colors distinguished by their hexadecimal RGB values, you can use `[: Int]` to indicate indexing by an integer.
+
+```go
+enum Color : Int {
+    Red = 0xFF0000,
+    Blue = 0x0000FF,
+    Green = 0x00FF00
+}
+```
+
+By default, if no Underlying Type is specified, `Int` is used, and values are indexed in ascending order from 0 to N.
+When using the default Underlying Type, you can assign indices to specific values and the rest will auto-increment. However, if you use a different Underlying Type, you must manually assign indices to all values.
+
+```go
+enum Color {
+    Red = 1,
+    Blue = 2,
+    Green
+}
+```
+
+Here, `Green` is not explicitly indexed, so it receives the lowest available value starting from 0. Since 0 is unused, the final order will be:
+
+```go
+enum Color {
+    Green = 0,
+    Red = 1,
+    Blue = 2
+}
+```
+
+---
+
+##### Scoped
+
+Enum values are namespaced to prevent global collisions:
+
+```go
+enum Color : Int {
+    Red = 0xFF0000,
+    Blue = 0x0000FF,
+    Green = 0x00FF00
+}
+```
+
+To access `Red`, the identifier is not used directly; instead, `Color.Red` is used to avoid collisions with other enumerators.
+
+---
+
+##### Associated Values
+
+Associated values allow attaching data to enumerators, such that:
+
+```go
+enum Packet {
+    Connect(username: SliceChar),
+    Data(payload: ByteArray),
+    Error(code: Int, message: SliceChar)
+}
+
+func foo() {
+    var data = Packet.Data(payload)
+}
+```
+
+This is similar to structs in Go or C++, enabling the creation of enum data with associated values, without the need to define a complex object structure.
+
+---
+
+##### Memory Model
+
+Given the existence of normal enumerators, underlying types, and associated values, there are two ways to serialize these data in memory:
+
+**Underlying Enumerators:**
+Stored by specifying the Underlying Type at the start of the set, followed by a mapping of Index → Identifier. These are the simplest to store as they contain basic information.
+
+**Associated Value Enumerators:**
+These resemble structs in memory, similar to objects. For example:
+
+```go
+enum Packet {
+    Connect(username: SliceChar),
+    Data(payload: ByteArray),
+    Error(code: Int, message: SliceChar)
+}
+
+func foo() {
+    var error = Packet.Error(404, "Error Message")
+}
+```
+
+Here, `Int` occupies 4 bytes and `SliceChar` 1 byte, so 5 bytes are stored in memory in addition to the enumerator header.
+For dynamic elements or objects, such as arrays or `User`, only a pointer referencing the value is stored.
 
 #### Interfaces
 
@@ -1069,6 +1297,8 @@ class UserRepository : Repository<User> {
 ### Type Casting
 
 ### Type Inference
+
+### Type Comparison
 
 ### Unreachable Code Detection
 
